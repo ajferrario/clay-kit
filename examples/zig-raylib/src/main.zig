@@ -215,6 +215,11 @@ pub fn main() !void {
                         _ = claykit.button(&ctx, "BtnWarning", "Warning", .{ .color_scheme = .warning });
                         _ = claykit.button(&ctx, "BtnError", "Error", .{ .color_scheme = .@"error" });
                     });
+
+                    // Input demo
+                    zclay.text("Input:", claykit.textStyle(&ctx, .{ .size = .sm, .color = theme.muted }));
+                    _ = claykit.input(&ctx, "Input1", "Sample text", .{}, false);
+                    _ = claykit.input(&ctx, "Input2", "Focused input", .{}, true);
                 });
 
                 // Center panel

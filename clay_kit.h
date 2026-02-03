@@ -439,6 +439,33 @@ static inline Clay_LayoutConfig ClayKit_SpacerLayout(void) {
 #define CLAYKIT_SPACER(id) \
     CLAY(id, { .layout = ClayKit_SpacerLayout() })
 
+/* CLAYKIT_INPUT: Text input container
+ * Usage: CLAYKIT_INPUT(ctx, CLAY_ID("myInput"), cfg, focused) { CLAY_TEXT(...); }
+ * The input renders the container - you render the text content inside */
+#define CLAYKIT_INPUT(ctx, id, cfg, focused) \
+    CLAY(id, { \
+        .layout = { \
+            .sizing = { \
+                .width = ((cfg).width > 0) \
+                    ? ((Clay_SizingAxis){ .type = CLAY__SIZING_TYPE_FIXED, .size = { .minMax = { (cfg).width, (cfg).width } } }) \
+                    : ((Clay_SizingAxis){ .type = CLAY__SIZING_TYPE_GROW }), \
+                .height = CLAY_SIZING_FIT(0) \
+            }, \
+            .padding = { \
+                ClayKit_InputPaddingX(ctx, (cfg).size), \
+                ClayKit_InputPaddingX(ctx, (cfg).size), \
+                ClayKit_InputPaddingY(ctx, (cfg).size), \
+                ClayKit_InputPaddingY(ctx, (cfg).size) \
+            } \
+        }, \
+        .backgroundColor = ((cfg).bg.a != 0) ? (cfg).bg : (ctx)->theme_ptr->bg, \
+        .cornerRadius = CLAY_CORNER_RADIUS((ctx)->theme_ptr->radius.sm), \
+        .border = { \
+            .color = ClayKit_InputBorderColor(ctx, cfg, focused), \
+            .width = { 1, 1, 1, 1, 0 } \
+        } \
+    })
+
 /* CLAYKIT_BUTTON: Interactive button with hover state
  * Usage: CLAYKIT_BUTTON(ctx, CLAY_ID("myBtn"), cfg) { CLAY_TEXT(...); }
  * Use Clay_Hovered() inside the block to check hover state */
@@ -506,6 +533,20 @@ Clay_TextElementConfig ClayKit_HeadingStyle(ClayKit_Context *ctx, ClayKit_Headin
 /* Badge - renders a badge element, call within a CLAY() block */
 void ClayKit_Badge(ClayKit_Context *ctx, Clay_String text, ClayKit_BadgeConfig cfg);
 
+/* ============================================================================
+ * Input Configuration
+ * ============================================================================ */
+
+typedef struct ClayKit_InputConfig {
+    ClayKit_Size size;           /* Size affects padding and font */
+    Clay_Color bg;               /* Background color (default: theme bg) */
+    Clay_Color border_color;     /* Border color (default: theme border) */
+    Clay_Color focus_color;      /* Border color when focused (default: theme primary) */
+    Clay_Color text_color;       /* Text color (default: theme fg) */
+    Clay_Color placeholder_color; /* Placeholder text color (default: theme muted) */
+    uint16_t width;              /* Fixed width (0 = grow to fill) */
+} ClayKit_InputConfig;
+
 /* Button helper functions for computing styles */
 Clay_Color ClayKit_ButtonBgColor(ClayKit_Context *ctx, ClayKit_ButtonConfig cfg, bool hovered);
 Clay_Color ClayKit_ButtonTextColor(ClayKit_Context *ctx, ClayKit_ButtonConfig cfg);
@@ -515,6 +556,12 @@ uint16_t ClayKit_ButtonPaddingX(ClayKit_Context *ctx, ClayKit_Size size);
 uint16_t ClayKit_ButtonPaddingY(ClayKit_Context *ctx, ClayKit_Size size);
 uint16_t ClayKit_ButtonRadius(ClayKit_Context *ctx, ClayKit_Size size);
 uint16_t ClayKit_ButtonFontSize(ClayKit_Context *ctx, ClayKit_Size size);
+
+/* Input helper functions */
+uint16_t ClayKit_InputPaddingX(ClayKit_Context *ctx, ClayKit_Size size);
+uint16_t ClayKit_InputPaddingY(ClayKit_Context *ctx, ClayKit_Size size);
+uint16_t ClayKit_InputFontSize(ClayKit_Context *ctx, ClayKit_Size size);
+Clay_Color ClayKit_InputBorderColor(ClayKit_Context *ctx, ClayKit_InputConfig cfg, bool focused);
 
 /* ============================================================================
  * Theme Presets (defined in implementation)
@@ -1016,6 +1063,47 @@ Clay_Color ClayKit_ButtonBorderColor(ClayKit_Context *ctx, ClayKit_ButtonConfig 
 
 uint16_t ClayKit_ButtonBorderWidth(ClayKit_ButtonConfig cfg) {
     return (cfg.variant == CLAYKIT_BUTTON_OUTLINE && !cfg.disabled) ? 1 : 0;
+}
+
+/* ----------------------------------------------------------------------------
+ * Input Helper Functions
+ * ---------------------------------------------------------------------------- */
+
+uint16_t ClayKit_InputPaddingX(ClayKit_Context *ctx, ClayKit_Size size) {
+    (void)ctx;
+    switch (size) {
+        case CLAYKIT_SIZE_XS: return 6;
+        case CLAYKIT_SIZE_SM: return 8;
+        case CLAYKIT_SIZE_LG: return 14;
+        case CLAYKIT_SIZE_XL: return 16;
+        case CLAYKIT_SIZE_MD:
+        default: return 12;
+    }
+}
+
+uint16_t ClayKit_InputPaddingY(ClayKit_Context *ctx, ClayKit_Size size) {
+    (void)ctx;
+    switch (size) {
+        case CLAYKIT_SIZE_XS: return 4;
+        case CLAYKIT_SIZE_SM: return 6;
+        case CLAYKIT_SIZE_LG: return 10;
+        case CLAYKIT_SIZE_XL: return 12;
+        case CLAYKIT_SIZE_MD:
+        default: return 8;
+    }
+}
+
+uint16_t ClayKit_InputFontSize(ClayKit_Context *ctx, ClayKit_Size size) {
+    return ClayKit_GetFontSize(ctx->theme_ptr, size);
+}
+
+Clay_Color ClayKit_InputBorderColor(ClayKit_Context *ctx, ClayKit_InputConfig cfg, bool focused) {
+    ClayKit_Theme *theme = ctx->theme_ptr;
+
+    if (focused) {
+        return (cfg.focus_color.a != 0) ? cfg.focus_color : theme->primary;
+    }
+    return (cfg.border_color.a != 0) ? cfg.border_color : theme->border;
 }
 
 /* ----------------------------------------------------------------------------

@@ -399,6 +399,20 @@ pub const ButtonResult = extern struct {
 };
 
 // ============================================================================
+// Input Configuration
+// ============================================================================
+
+pub const InputConfig = extern struct {
+    size: Size = .md,
+    bg: Color = .{}, // Background color (default: theme bg)
+    border_color: Color = .{}, // Border color (default: theme border)
+    focus_color: Color = .{}, // Border when focused (default: theme primary)
+    text_color: Color = .{}, // Text color (default: theme fg)
+    placeholder_color: Color = .{}, // Placeholder color (default: theme muted)
+    width: u16 = 0, // Fixed width (0 = grow)
+};
+
+// ============================================================================
 // External C Functions
 // ============================================================================
 
@@ -437,6 +451,12 @@ extern fn ClayKit_ButtonPaddingX(ctx: *Context, size: Size) u16;
 extern fn ClayKit_ButtonPaddingY(ctx: *Context, size: Size) u16;
 extern fn ClayKit_ButtonRadius(ctx: *Context, size: Size) u16;
 extern fn ClayKit_ButtonFontSize(ctx: *Context, size: Size) u16;
+
+// Input helper functions
+extern fn ClayKit_InputPaddingX(ctx: *Context, size: Size) u16;
+extern fn ClayKit_InputPaddingY(ctx: *Context, size: Size) u16;
+extern fn ClayKit_InputFontSize(ctx: *Context, size: Size) u16;
+extern fn ClayKit_InputBorderColor(ctx: *Context, cfg: InputConfig, focused: bool) Color;
 
 // Theme presets (extern const)
 extern const CLAYKIT_THEME_LIGHT: Theme;
@@ -625,6 +645,68 @@ pub fn button(ctx: *Context, id: []const u8, text: []const u8, cfg: ButtonConfig
     });
 
     return hovered;
+}
+
+/// Get input horizontal padding
+pub fn inputPaddingX(ctx: *Context, size: Size) u16 {
+    return ClayKit_InputPaddingX(ctx, size);
+}
+
+/// Get input vertical padding
+pub fn inputPaddingY(ctx: *Context, size: Size) u16 {
+    return ClayKit_InputPaddingY(ctx, size);
+}
+
+/// Get input font size
+pub fn inputFontSize(ctx: *Context, size: Size) u16 {
+    return ClayKit_InputFontSize(ctx, size);
+}
+
+/// Get input border color based on focus state
+pub fn inputBorderColor(ctx: *Context, cfg: InputConfig, focused: bool) Color {
+    return ClayKit_InputBorderColor(ctx, cfg, focused);
+}
+
+/// Render an input field
+/// Returns whether the input was clicked (useful for setting focus)
+pub fn input(ctx: *Context, id: []const u8, text: []const u8, cfg: InputConfig, focused: bool) bool {
+    const pad_x = ClayKit_InputPaddingX(ctx, cfg.size);
+    const pad_y = ClayKit_InputPaddingY(ctx, cfg.size);
+    const font_size = ClayKit_InputFontSize(ctx, cfg.size);
+    const border_color = ClayKit_InputBorderColor(ctx, cfg, focused);
+    const theme = ctx.theme();
+
+    var clicked: bool = false;
+
+    zclay.UI()(.{
+        .id = zclay.ElementId.ID(id),
+        .layout = .{
+            .sizing = .{
+                .w = if (cfg.width > 0) zclay.SizingAxis.fixed(@floatFromInt(cfg.width)) else .grow,
+                .h = .fit,
+            },
+            .padding = .{ .left = pad_x, .right = pad_x, .top = pad_y, .bottom = pad_y },
+        },
+        .background_color = if (cfg.bg.a != 0) .{ cfg.bg.r, cfg.bg.g, cfg.bg.b, cfg.bg.a } else .{ theme.bg.r, theme.bg.g, theme.bg.b, theme.bg.a },
+        .corner_radius = zclay.CornerRadius.all(@floatFromInt(theme.radius.sm)),
+        .border = .{
+            .color = .{ border_color.r, border_color.g, border_color.b, border_color.a },
+            .width = .{ .left = 1, .right = 1, .top = 1, .bottom = 1 },
+        },
+    })({
+        clicked = zclay.hovered();
+        const text_color = if (cfg.text_color.a != 0) cfg.text_color else theme.fg;
+
+        if (text.len > 0) {
+            zclay.text(text, .{
+                .font_size = font_size,
+                .font_id = theme.font_id.body,
+                .color = .{ text_color.r, text_color.g, text_color.b, text_color.a },
+            });
+        }
+    });
+
+    return clicked;
 }
 
 // ============================================================================
