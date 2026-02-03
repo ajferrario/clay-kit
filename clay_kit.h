@@ -6,7 +6,6 @@
  *   #define CLAYKIT_IMPLEMENTATION
  *   #include "clay_kit.h"
  *
- * Requires clay.h to be included before this header.
  */
 
 #ifndef CLAY_KIT_H
@@ -14,6 +13,7 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include "clay.h"
 
 #ifdef __cplusplus
 extern "C" {

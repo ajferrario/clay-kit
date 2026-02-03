@@ -1,6 +1,8 @@
 .{
-    .name = "claykit-zig-example",
+    .name = .claykit_zig_example,
     .version = "0.1.0",
+    .fingerprint = 0xe3a6691ac402e755,
+    .minimum_zig_version = "0.16.0-dev.660+27aba2d77",
     .dependencies = .{
         .zclay = .{
             .url = "git+https://github.com/johan0A/clay-zig-bindings?ref=v0.2.2+0.14#18cc9c148f02c3f00f824cc3a36db5030fd3de34",

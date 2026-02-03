@@ -14,28 +14,44 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
-    // Create executable
-    const exe = b.addExecutable(.{
-        .name = "claykit-demo",
+    // Create claykit module from our hand-written bindings
+    const claykit_module = b.createModule(.{
+        .root_source_file = b.path("../../clay_kit.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    // claykit depends on zclay
+    claykit_module.addImport("zclay", zclay_dep.module("zclay"));
+
+    // Create the root module
+    const root_module = b.createModule(.{
         .root_source_file = b.path("src/main.zig"),
         .target = target,
         .optimize = optimize,
     });
 
-    // Add clay-zig module
-    exe.root_module.addImport("zclay", zclay_dep.module("zclay"));
+    // Add imports to the root module
+    root_module.addImport("zclay", zclay_dep.module("zclay"));
+    root_module.addImport("raylib", raylib_dep.module("raylib"));
+    root_module.addImport("claykit", claykit_module);
 
-    // Add raylib module
-    const raylib_mod = raylib_dep.module("raylib");
-    exe.root_module.addImport("raylib", raylib_mod);
+    // Create executable with the module
+    const exe = b.addExecutable(.{
+        .name = "claykit-demo",
+        .root_module = root_module,
+    });
+
+    // Compile clay_kit.c (C implementation)
+    exe.addCSourceFile(.{
+        .file = b.path("../../clay_kit.c"),
+        .flags = &.{"-std=c99"},
+    });
+    exe.addIncludePath(b.path("../../"));
+    exe.addIncludePath(b.path("../../vendor"));
 
     // Link raylib
-    raylib_dep.artifact("raylib").addIncludePath(b.path("../../"));
-    exe.linkLibrary(raylib_dep.artifact("raylib"));
-
-    // Add include path for clay_kit.h (relative to this build.zig)
-    exe.root_module.addIncludePath(b.path("../../"));
-    exe.root_module.addIncludePath(b.path("../../vendor"));
+    const raylib_artifact = raylib_dep.artifact("raylib");
+    exe.linkLibrary(raylib_artifact);
 
     // Install
     b.installArtifact(exe);

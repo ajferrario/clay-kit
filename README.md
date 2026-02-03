@@ -40,6 +40,35 @@ CLAYKIT_BUTTON(&ctx, CLAY_ID("submit"), {
 }
 ```
 
+## Building
+
+### C Example
+
+```bash
+gcc -std=c99 -Wall -Wextra -pedantic -I. -Ivendor examples/test_compile.c -o test_compile
+./test_compile
+```
+
+### Tests
+
+```bash
+gcc -std=c99 -Wall -Wextra -I. -Ivendor tests/test_clay_kit.c -o tests/test_clay_kit -lm
+./tests/test_clay_kit
+```
+
+### Zig + Raylib Demo
+
+```bash
+cd examples/zig-raylib
+zig build run
+```
+
+### Verify Zig Compatibility
+
+```bash
+zig translate-c clay_kit.h -Ivendor
+```
+
 ## Zig
 
 ```zig

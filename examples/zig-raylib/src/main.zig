@@ -1,12 +1,7 @@
 const std = @import("std");
 const zclay = @import("zclay");
 const raylib = @import("raylib");
-
-// Import clay_kit.h via @cImport
-const claykit = @cImport({
-    @cDefine("CLAYKIT_IMPLEMENTATION", {});
-    @cInclude("clay_kit.h");
-});
+const claykit = @import("claykit");
 
 const WINDOW_WIDTH = 1024;
 const WINDOW_HEIGHT = 768;
@@ -14,15 +9,24 @@ const WINDOW_HEIGHT = 768;
 // Raylib font for measuring text
 var raylib_fonts: [1]raylib.Font = undefined;
 
+// Buffer for null-terminating text strings
+var text_buffer: [4096]u8 = undefined;
+
 // Clay text measurement callback
-fn measureText(text_slice: []const u8, config: *zclay.TextElementConfig, _: usize) zclay.Dimensions {
-    const font = raylib_fonts[config.fontId];
-    const font_size: f32 = @floatFromInt(config.fontSize);
-    const letter_spacing: f32 = @floatFromInt(config.letterSpacing);
+fn measureText(text_slice: []const u8, config: *zclay.TextElementConfig, _: void) zclay.Dimensions {
+    const font = raylib_fonts[config.font_id];
+    const font_size: f32 = @floatFromInt(config.font_size);
+    const letter_spacing: f32 = @floatFromInt(config.letter_spacing);
+
+    // Clay strings aren't null-terminated, so copy to buffer and add terminator
+    const len = @min(text_slice.len, text_buffer.len - 1);
+    @memcpy(text_buffer[0..len], text_slice[0..len]);
+    text_buffer[len] = 0;
+    const text_z: [:0]const u8 = text_buffer[0..len :0];
 
     var text_size = raylib.measureTextEx(
         font,
-        @ptrCast(text_slice.ptr),
+        text_z,
         font_size,
         letter_spacing,
     );
@@ -32,7 +36,7 @@ fn measureText(text_slice: []const u8, config: *zclay.TextElementConfig, _: usiz
         text_size.x = 1;
     }
 
-    return .{ .width = text_size.x, .height = text_size.y };
+    return .{ .w = text_size.x, .h = text_size.y };
 }
 
 pub fn main() !void {
@@ -42,8 +46,8 @@ pub fn main() !void {
     raylib.setTargetFPS(60);
 
     // Load font
-    raylib_fonts[0] = raylib.loadFontEx("resources/Roboto-Regular.ttf", 48, null) orelse
-        raylib.getFontDefault();
+    raylib_fonts[0] = raylib.loadFontEx("resources/Roboto-Regular.ttf", 48, null) catch
+        (raylib.getFontDefault() catch unreachable);
 
     // Initialize Clay
     const min_memory_size: u32 = zclay.minMemorySize();
@@ -55,290 +59,187 @@ pub fn main() !void {
 
     const arena: zclay.Arena = zclay.createArenaWithCapacityAndMemory(memory);
     _ = zclay.initialize(arena, .{
-        .width = WINDOW_WIDTH,
-        .height = WINDOW_HEIGHT,
-    }, null);
-    zclay.setMeasureTextFunction(measureText, 0);
+        .w = WINDOW_WIDTH,
+        .h = WINDOW_HEIGHT,
+    }, .{});
+    zclay.setMeasureTextFunction(void, {}, measureText);
 
-    // Initialize ClayKit
-    var theme = claykit.CLAYKIT_THEME_LIGHT;
-    var state_buf: [64]claykit.ClayKit_State = undefined;
-    var ctx: claykit.ClayKit_Context = undefined;
-    claykit.ClayKit_Init(&ctx, &theme, &state_buf, 64);
+    // Initialize ClayKit using the Zig bindings
+    var theme = claykit.Theme.light;
+    var state_buf: [64]claykit.State = undefined;
+    var ctx: claykit.Context = .{};
+    claykit.init(&ctx, &theme, &state_buf);
 
     // Main loop
     while (!raylib.windowShouldClose()) {
         // Update Clay layout dimensions if window resized
         const screen_width: f32 = @floatFromInt(raylib.getScreenWidth());
         const screen_height: f32 = @floatFromInt(raylib.getScreenHeight());
-        zclay.setLayoutDimensions(.{ .width = screen_width, .height = screen_height });
+        zclay.setLayoutDimensions(.{ .w = screen_width, .h = screen_height });
 
         // Update pointer state
         const mouse_pos = raylib.getMousePosition();
-        zclay.setPointerState(.{ .x = mouse_pos.x, .y = mouse_pos.y }, raylib.isMouseButtonDown(.mouse_button_left));
+        zclay.setPointerState(.{ .x = mouse_pos.x, .y = mouse_pos.y }, raylib.isMouseButtonDown(.left));
 
         // Begin frame
-        claykit.ClayKit_BeginFrame(&ctx);
+        claykit.beginFrame(&ctx);
 
-        // Build UI layout
+        // Build UI layout using new zclay API
         zclay.beginLayout();
 
-        // Root container - full screen
-        if (zclay.openElement()) |root| {
-            root.configure(.{
-                .id = zclay.id("Root"),
+        // Root container
+        zclay.UI()(.{
+            .id = zclay.ElementId.ID("Root"),
+            .layout = .{
+                .sizing = .{ .w = .grow, .h = .grow },
+                .padding = zclay.Padding.all(24),
+                .child_gap = 16,
+                .direction = .top_to_bottom,
+            },
+            .background_color = toZclayColor(theme.bg),
+        })({
+            // Header
+            zclay.UI()(.{
+                .id = zclay.ElementId.ID("Header"),
                 .layout = .{
-                    .sizing = .{
-                        .width = zclay.Element.Sizing.grow(.{}),
-                        .height = zclay.Element.Sizing.grow(.{}),
-                    },
-                    .padding = zclay.Element.Padding.all(24),
-                    .layoutDirection = .top_to_bottom,
-                    .childGap = 16,
+                    .sizing = .{ .w = .grow },
+                    .padding = zclay.Padding.all(16),
                 },
-                .backgroundColor = toZclayColor(theme.bg),
+                .background_color = toZclayColor(theme.primary),
+                .corner_radius = zclay.CornerRadius.all(@floatFromInt(theme.radius.md)),
+            })({
+                zclay.text("ClayKit Demo - Zig Bindings", .{
+                    .font_size = theme.font_size.xl,
+                    .color = .{ 255, 255, 255, 255 },
+                });
             });
 
-            // Header
-            if (zclay.openElement()) |header| {
-                header.configure(.{
-                    .id = zclay.id("Header"),
+            // Content area
+            zclay.UI()(.{
+                .id = zclay.ElementId.ID("Content"),
+                .layout = .{
+                    .sizing = .{ .w = .grow, .h = .grow },
+                    .child_gap = 16,
+                    .direction = .left_to_right,
+                },
+            })({
+                // Left panel
+                zclay.UI()(.{
+                    .id = zclay.ElementId.ID("LeftPanel"),
                     .layout = .{
-                        .sizing = .{ .width = zclay.Element.Sizing.grow(.{}) },
-                        .padding = zclay.Element.Padding.all(16),
-                        .childAlignment = .{ .y = .center },
+                        .sizing = .{ .w = zclay.SizingAxis.fixed(300), .h = .grow },
+                        .padding = zclay.Padding.all(16),
+                        .child_gap = 12,
+                        .direction = .top_to_bottom,
                     },
-                    .backgroundColor = toZclayColor(theme.primary),
-                    .cornerRadius = zclay.CornerRadius.all(@floatFromInt(theme.radius.md)),
+                    .background_color = toZclayColor(theme.secondary),
+                    .corner_radius = zclay.CornerRadius.all(@floatFromInt(theme.radius.md)),
+                })({
+                    zclay.text("Theme: Light", .{
+                        .font_size = theme.font_size.lg,
+                        .color = toZclayColor(theme.fg),
+                    });
+
+                    zclay.text("ClayKit State Count:", .{
+                        .font_size = theme.font_size.md,
+                        .color = toZclayColor(theme.muted),
+                    });
+
+                    // Show state count from context
+                    var buf: [32]u8 = undefined;
+                    const count_str = std.fmt.bufPrint(&buf, "{d} states", .{ctx.state_count}) catch "?";
+                    zclay.text(count_str, .{
+                        .font_size = theme.font_size.md,
+                        .color = toZclayColor(theme.fg),
+                    });
                 });
 
-                zclay.text("ClayKit Demo - Layout Primitives", .{
-                    .fontSize = theme.font_size.xl,
-                    .textColor = .{ .r = 255, .g = 255, .b = 255, .a = 255 },
-                });
-
-                header.close();
-            }
-
-            // Content area with boxes
-            if (zclay.openElement()) |content| {
-                content.configure(.{
-                    .id = zclay.id("Content"),
+                // Center panel
+                zclay.UI()(.{
+                    .id = zclay.ElementId.ID("CenterPanel"),
                     .layout = .{
-                        .sizing = .{
-                            .width = zclay.Element.Sizing.grow(.{}),
-                            .height = zclay.Element.Sizing.grow(.{}),
-                        },
-                        .childGap = 16,
-                        .layoutDirection = .left_to_right,
+                        .sizing = .{ .w = .grow, .h = .grow },
+                        .child_alignment = .{ .x = .center, .y = .center },
                     },
+                    .background_color = .{ 240, 240, 245, 255 },
+                    .corner_radius = zclay.CornerRadius.all(@floatFromInt(theme.radius.md)),
+                })({
+                    zclay.UI()(.{
+                        .id = zclay.ElementId.ID("CenteredBox"),
+                        .layout = .{
+                            .sizing = .{
+                                .w = zclay.SizingAxis.fixed(250),
+                                .h = zclay.SizingAxis.fixed(120),
+                            },
+                            .child_alignment = .{ .x = .center, .y = .center },
+                            .direction = .top_to_bottom,
+                            .child_gap = 8,
+                        },
+                        .background_color = toZclayColor(theme.success),
+                        .corner_radius = zclay.CornerRadius.all(@floatFromInt(theme.radius.lg)),
+                    })({
+                        zclay.text("Zig Bindings Work!", .{
+                            .font_size = theme.font_size.lg,
+                            .color = .{ 255, 255, 255, 255 },
+                        });
+                        zclay.text("No @cImport needed", .{
+                            .font_size = theme.font_size.sm,
+                            .color = .{ 220, 255, 220, 255 },
+                        });
+                    });
                 });
 
-                // Left panel - demonstrates VStack
-                if (zclay.openElement()) |left_panel| {
-                    left_panel.configure(.{
-                        .id = zclay.id("LeftPanel"),
-                        .layout = .{
-                            .sizing = .{
-                                .width = zclay.Element.Sizing.fixed(300),
-                                .height = zclay.Element.Sizing.grow(.{}),
-                            },
-                            .padding = zclay.Element.Padding.all(16),
-                            .layoutDirection = .top_to_bottom,
-                            .childGap = 12,
-                        },
-                        .backgroundColor = toZclayColor(theme.secondary),
-                        .cornerRadius = zclay.CornerRadius.all(@floatFromInt(theme.radius.md)),
-                    });
-
-                    zclay.text("VStack Example", .{
-                        .fontSize = theme.font_size.lg,
-                        .textColor = toZclayColor(theme.fg),
-                    });
-
-                    // Stack items
-                    for (0..4) |i| {
-                        if (zclay.openElement()) |item| {
-                            item.configure(.{
-                                .id = zclay.idI("StackItem", @intCast(i)),
-                                .layout = .{
-                                    .sizing = .{ .width = zclay.Element.Sizing.grow(.{}) },
-                                    .padding = zclay.Element.Padding.all(12),
-                                    .childAlignment = .{ .x = .center },
-                                },
-                                .backgroundColor = toZclayColor(theme.bg),
-                                .cornerRadius = zclay.CornerRadius.all(@floatFromInt(theme.radius.sm)),
-                            });
-
-                            var buf: [32]u8 = undefined;
-                            const label = std.fmt.bufPrint(&buf, "Item {d}", .{i + 1}) catch "Item";
-                            zclay.text(label, .{
-                                .fontSize = theme.font_size.md,
-                                .textColor = toZclayColor(theme.fg),
-                            });
-
-                            item.close();
-                        }
-                    }
-
-                    left_panel.close();
-                }
-
-                // Center panel - demonstrates Center
-                if (zclay.openElement()) |center_panel| {
-                    center_panel.configure(.{
-                        .id = zclay.id("CenterPanel"),
-                        .layout = .{
-                            .sizing = .{
-                                .width = zclay.Element.Sizing.grow(.{}),
-                                .height = zclay.Element.Sizing.grow(.{}),
-                            },
-                            .childAlignment = .{ .x = .center, .y = .center },
-                        },
-                        .backgroundColor = .{ .r = 240, .g = 240, .b = 245, .a = 255 },
-                        .cornerRadius = zclay.CornerRadius.all(@floatFromInt(theme.radius.md)),
-                    });
-
-                    if (zclay.openElement()) |centered_box| {
-                        centered_box.configure(.{
-                            .id = zclay.id("CenteredBox"),
-                            .layout = .{
-                                .sizing = .{
-                                    .width = zclay.Element.Sizing.fixed(200),
-                                    .height = zclay.Element.Sizing.fixed(100),
-                                },
-                                .childAlignment = .{ .x = .center, .y = .center },
-                            },
-                            .backgroundColor = toZclayColor(theme.success),
-                            .cornerRadius = zclay.CornerRadius.all(@floatFromInt(theme.radius.lg)),
-                        });
-
-                        zclay.text("Centered!", .{
-                            .fontSize = theme.font_size.lg,
-                            .textColor = .{ .r = 255, .g = 255, .b = 255, .a = 255 },
-                        });
-
-                        centered_box.close();
-                    }
-
-                    center_panel.close();
-                }
-
-                // Right panel - demonstrates HStack
-                if (zclay.openElement()) |right_panel| {
-                    right_panel.configure(.{
-                        .id = zclay.id("RightPanel"),
-                        .layout = .{
-                            .sizing = .{
-                                .width = zclay.Element.Sizing.fixed(300),
-                                .height = zclay.Element.Sizing.grow(.{}),
-                            },
-                            .padding = zclay.Element.Padding.all(16),
-                            .layoutDirection = .top_to_bottom,
-                            .childGap = 12,
-                        },
-                        .backgroundColor = toZclayColor(theme.secondary),
-                        .cornerRadius = zclay.CornerRadius.all(@floatFromInt(theme.radius.md)),
-                    });
-
+                // Right panel - color swatches
+                zclay.UI()(.{
+                    .id = zclay.ElementId.ID("RightPanel"),
+                    .layout = .{
+                        .sizing = .{ .w = zclay.SizingAxis.fixed(200), .h = .grow },
+                        .padding = zclay.Padding.all(16),
+                        .child_gap = 12,
+                        .direction = .top_to_bottom,
+                    },
+                    .background_color = toZclayColor(theme.secondary),
+                    .corner_radius = zclay.CornerRadius.all(@floatFromInt(theme.radius.md)),
+                })({
                     zclay.text("Theme Colors", .{
-                        .fontSize = theme.font_size.lg,
-                        .textColor = toZclayColor(theme.fg),
+                        .font_size = theme.font_size.lg,
+                        .color = toZclayColor(theme.fg),
                     });
 
-                    // Color swatches using HStack
-                    if (zclay.openElement()) |swatches| {
-                        swatches.configure(.{
-                            .id = zclay.id("Swatches"),
-                            .layout = .{
-                                .sizing = .{ .width = zclay.Element.Sizing.grow(.{}) },
-                                .childGap = 8,
-                                .layoutDirection = .left_to_right,
-                            },
-                        });
-
-                        // Primary
-                        colorSwatch("SwatchPrimary", theme.primary);
-                        // Success
-                        colorSwatch("SwatchSuccess", theme.success);
-                        // Warning
-                        colorSwatch("SwatchWarning", theme.warning);
-                        // Error
-                        colorSwatch("SwatchError", theme.error);
-
-                        swatches.close();
-                    }
-
-                    // Spacer demonstration
-                    zclay.text("Spacer pushes content:", .{
-                        .fontSize = theme.font_size.sm,
-                        .textColor = toZclayColor(theme.muted),
+                    // Color swatches row
+                    zclay.UI()(.{
+                        .id = zclay.ElementId.ID("Swatches"),
+                        .layout = .{
+                            .sizing = .{ .w = .grow },
+                            .child_gap = 8,
+                            .direction = .left_to_right,
+                        },
+                    })({
+                        colorSwatch("Primary", theme.primary);
+                        colorSwatch("Success", theme.success);
+                        colorSwatch("Warning", theme.warning);
+                        colorSwatch("Error", theme.@"error");
                     });
-
-                    // Spacer - grows to fill space
-                    if (zclay.openElement()) |spacer| {
-                        spacer.configure(.{
-                            .id = zclay.id("Spacer"),
-                            .layout = .{
-                                .sizing = .{
-                                    .width = zclay.Element.Sizing.grow(.{}),
-                                    .height = zclay.Element.Sizing.grow(.{}),
-                                },
-                            },
-                        });
-                        spacer.close();
-                    }
-
-                    // Footer pushed to bottom by spacer
-                    if (zclay.openElement()) |footer_box| {
-                        footer_box.configure(.{
-                            .id = zclay.id("FooterBox"),
-                            .layout = .{
-                                .sizing = .{ .width = zclay.Element.Sizing.grow(.{}) },
-                                .padding = zclay.Element.Padding.all(12),
-                                .childAlignment = .{ .x = .center },
-                            },
-                            .backgroundColor = toZclayColor(theme.bg),
-                            .cornerRadius = zclay.CornerRadius.all(@floatFromInt(theme.radius.sm)),
-                        });
-
-                        zclay.text("Pushed to bottom!", .{
-                            .fontSize = theme.font_size.md,
-                            .textColor = toZclayColor(theme.fg),
-                        });
-
-                        footer_box.close();
-                    }
-
-                    right_panel.close();
-                }
-
-                content.close();
-            }
+                });
+            });
 
             // Footer
-            if (zclay.openElement()) |footer| {
-                footer.configure(.{
-                    .id = zclay.id("Footer"),
-                    .layout = .{
-                        .sizing = .{ .width = zclay.Element.Sizing.grow(.{}) },
-                        .padding = zclay.Element.Padding.all(12),
-                        .childAlignment = .{ .x = .center },
-                    },
-                    .backgroundColor = toZclayColor(theme.border),
-                    .cornerRadius = zclay.CornerRadius.all(@floatFromInt(theme.radius.sm)),
+            zclay.UI()(.{
+                .id = zclay.ElementId.ID("Footer"),
+                .layout = .{
+                    .sizing = .{ .w = .grow },
+                    .padding = zclay.Padding.all(12),
+                    .child_alignment = .{ .x = .center },
+                },
+                .background_color = toZclayColor(theme.border),
+                .corner_radius = zclay.CornerRadius.all(@floatFromInt(theme.radius.sm)),
+            })({
+                zclay.text("ClayKit - Hand-written Zig bindings", .{
+                    .font_size = theme.font_size.sm,
+                    .color = toZclayColor(theme.muted),
                 });
-
-                zclay.text("ClayKit - Zero-allocation UI components for Clay", .{
-                    .fontSize = theme.font_size.sm,
-                    .textColor = toZclayColor(theme.muted),
-                });
-
-                footer.close();
-            }
-
-            root.close();
-        }
+            });
+        });
 
         // End layout and get render commands
         const render_commands = zclay.endLayout();
@@ -347,37 +248,42 @@ pub fn main() !void {
         raylib.beginDrawing();
         raylib.clearBackground(raylib.Color.white);
 
-        for (render_commands.items) |cmd| {
-            switch (cmd.commandType) {
+        for (render_commands) |cmd| {
+            switch (cmd.command_type) {
                 .rectangle => {
-                    const config = cmd.renderData.rectangle;
+                    const config = cmd.render_data.rectangle;
                     drawRoundedRect(
-                        cmd.boundingBox,
-                        config.backgroundColor,
-                        config.cornerRadius,
+                        cmd.bounding_box,
+                        config.background_color,
+                        config.corner_radius,
                     );
                 },
                 .text => {
-                    const config = cmd.renderData.text;
-                    const font = raylib_fonts[config.fontId];
+                    const config = cmd.render_data.text;
+                    const font = raylib_fonts[config.font_id];
+                    // Copy to buffer and null-terminate (Clay strings aren't null-terminated)
+                    const len: usize = @intCast(config.string_contents.length);
+                    const safe_len = @min(len, text_buffer.len - 1);
+                    @memcpy(text_buffer[0..safe_len], config.string_contents.chars[0..safe_len]);
+                    text_buffer[safe_len] = 0;
+                    const text_z: [:0]const u8 = text_buffer[0..safe_len :0];
                     raylib.drawTextEx(
                         font,
-                        @ptrCast(config.text.chars),
-                        .{ .x = cmd.boundingBox.x, .y = cmd.boundingBox.y },
-                        @floatFromInt(config.fontSize),
-                        @floatFromInt(config.letterSpacing),
-                        toRaylibColor(config.textColor),
+                        text_z,
+                        .{ .x = cmd.bounding_box.x, .y = cmd.bounding_box.y },
+                        @floatFromInt(config.font_size),
+                        @floatFromInt(config.letter_spacing),
+                        toRaylibColor(config.text_color),
                     );
                 },
                 .border => {
-                    const config = cmd.renderData.border;
-                    // Simple border drawing (just outline for now)
+                    const config = cmd.render_data.border;
                     raylib.drawRectangleLinesEx(
                         .{
-                            .x = cmd.boundingBox.x,
-                            .y = cmd.boundingBox.y,
-                            .width = cmd.boundingBox.width,
-                            .height = cmd.boundingBox.height,
+                            .x = cmd.bounding_box.x,
+                            .y = cmd.bounding_box.y,
+                            .width = cmd.bounding_box.width,
+                            .height = cmd.bounding_box.height,
                         },
                         @floatFromInt(config.width.top),
                         toRaylibColor(config.color),
@@ -391,43 +297,35 @@ pub fn main() !void {
     }
 }
 
-fn colorSwatch(id: []const u8, color: claykit.Clay_Color) void {
-    if (zclay.openElement()) |swatch| {
-        swatch.configure(.{
-            .id = zclay.hashString(id, 0),
-            .layout = .{
-                .sizing = .{
-                    .width = zclay.Element.Sizing.fixed(40),
-                    .height = zclay.Element.Sizing.fixed(40),
-                },
+fn colorSwatch(id: []const u8, color: claykit.Color) void {
+    zclay.UI()(.{
+        .id = zclay.ElementId.ID(id),
+        .layout = .{
+            .sizing = .{
+                .w = zclay.SizingAxis.fixed(32),
+                .h = zclay.SizingAxis.fixed(32),
             },
-            .backgroundColor = toZclayColor(color),
-            .cornerRadius = zclay.CornerRadius.all(4),
-        });
-        swatch.close();
-    }
+        },
+        .background_color = toZclayColor(color),
+        .corner_radius = zclay.CornerRadius.all(4),
+    })({});
 }
 
-fn toZclayColor(c: claykit.Clay_Color) zclay.Color {
-    return .{
-        .r = @floatFromInt(c.r),
-        .g = @floatFromInt(c.g),
-        .b = @floatFromInt(c.b),
-        .a = @floatFromInt(c.a),
-    };
+fn toZclayColor(c: claykit.Color) zclay.Color {
+    return .{ c.r, c.g, c.b, c.a };
 }
 
 fn toRaylibColor(c: zclay.Color) raylib.Color {
     return .{
-        .r = @intFromFloat(c.r),
-        .g = @intFromFloat(c.g),
-        .b = @intFromFloat(c.b),
-        .a = @intFromFloat(c.a),
+        .r = @intFromFloat(c[0]),
+        .g = @intFromFloat(c[1]),
+        .b = @intFromFloat(c[2]),
+        .a = @intFromFloat(c[3]),
     };
 }
 
 fn drawRoundedRect(bounds: zclay.BoundingBox, color: zclay.Color, radius: zclay.CornerRadius) void {
-    const avg_radius = (radius.topLeft + radius.topRight + radius.bottomLeft + radius.bottomRight) / 4.0;
+    const avg_radius = (radius.top_left + radius.top_right + radius.bottom_left + radius.bottom_right) / 4.0;
     const roundness = if (bounds.width > 0 and bounds.height > 0)
         avg_radius / @min(bounds.width, bounds.height) * 2.0
     else
