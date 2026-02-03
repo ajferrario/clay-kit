@@ -1,6 +1,7 @@
 # Compiled binaries
 examples/test_compile
 examples/basic
+tests/test_clay_kit
 *.o
 *.a
 *.so
