@@ -40,13 +40,27 @@ fn measureText(text_slice: []const u8, config: *zclay.TextElementConfig, _: void
 }
 
 pub fn main() !void {
+    // Get the executable's directory for resource paths
+    var exe_dir_buf: [std.fs.max_path_bytes]u8 = undefined;
+    const exe_dir = std.fs.selfExeDirPath(&exe_dir_buf) catch {
+        std.debug.print("Failed to get executable directory\n", .{});
+        return;
+    };
+
+    // Build path to font file relative to executable
+    var font_path_buf: [std.fs.max_path_bytes]u8 = undefined;
+    const font_path = std.fmt.bufPrintZ(&font_path_buf, "{s}/resources/Roboto-Regular.ttf", .{exe_dir}) catch {
+        std.debug.print("Failed to build font path\n", .{});
+        return;
+    };
+
     // Initialize raylib
     raylib.initWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "ClayKit + Raylib Demo");
     defer raylib.closeWindow();
     raylib.setTargetFPS(60);
 
-    // Load font
-    raylib_fonts[0] = raylib.loadFontEx("resources/Roboto-Regular.ttf", 48, null) catch
+    // Load font using absolute path
+    raylib_fonts[0] = raylib.loadFontEx(font_path, 48, null) catch
         (raylib.getFontDefault() catch unreachable);
 
     // Initialize Clay

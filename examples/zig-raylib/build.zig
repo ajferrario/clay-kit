@@ -56,6 +56,13 @@ pub fn build(b: *std.Build) void {
     // Install
     b.installArtifact(exe);
 
+    // Install resources
+    b.installDirectory(.{
+        .source_dir = b.path("src/resources"),
+        .install_dir = .{ .custom = "bin" },
+        .install_subdir = "resources",
+    });
+
     // Run step
     const run_cmd = b.addRunArtifact(exe);
     run_cmd.step.dependOn(b.getInstallStep());
