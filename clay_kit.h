@@ -176,6 +176,214 @@ typedef enum ClayKit_Modifier {
 } ClayKit_Modifier;
 
 /* ============================================================================
+ * Layout Primitives - Configuration Structs
+ * ============================================================================ */
+
+/* Box: Basic container with theme-aware styling */
+typedef struct ClayKit_BoxConfig {
+    Clay_Color bg;              /* Background color (default: transparent) */
+    Clay_Color border_color;    /* Border color */
+    uint16_t border_width;      /* Border width in pixels */
+    uint16_t padding;           /* Padding on all sides */
+    uint16_t radius;            /* Corner radius */
+    Clay_Sizing sizing;         /* Width/height sizing */
+} ClayKit_BoxConfig;
+
+/* Flex: Flexible container with direction and gap */
+typedef struct ClayKit_FlexConfig {
+    Clay_LayoutDirection direction;  /* CLAY_LEFT_TO_RIGHT or CLAY_TOP_TO_BOTTOM */
+    uint16_t gap;                    /* Gap between children */
+    Clay_ChildAlignment align;       /* Child alignment */
+    uint16_t padding;                /* Padding on all sides */
+    Clay_Sizing sizing;              /* Width/height sizing */
+    Clay_Color bg;                   /* Background color */
+} ClayKit_FlexConfig;
+
+/* Stack direction presets */
+typedef enum ClayKit_StackDirection {
+    CLAYKIT_STACK_VERTICAL = 0,   /* Top to bottom (VStack) */
+    CLAYKIT_STACK_HORIZONTAL = 1  /* Left to right (HStack) */
+} ClayKit_StackDirection;
+
+/* Stack: Convenience wrapper for Flex with preset directions */
+typedef struct ClayKit_StackConfig {
+    ClayKit_StackDirection direction;
+    uint16_t gap;                    /* Gap between children */
+    Clay_ChildAlignment align;       /* Child alignment */
+    uint16_t padding;                /* Padding on all sides */
+    Clay_Sizing sizing;              /* Width/height sizing */
+    Clay_Color bg;                   /* Background color */
+} ClayKit_StackConfig;
+
+/* Container: Centered box with max-width */
+typedef struct ClayKit_ContainerConfig {
+    uint16_t max_width;   /* Maximum width (0 = use theme default 1200) */
+    uint16_t padding;     /* Horizontal padding */
+    Clay_Color bg;        /* Background color */
+} ClayKit_ContainerConfig;
+
+/* ============================================================================
+ * Layout Primitives - Helper Functions
+ * ============================================================================ */
+
+/* Create Clay_LayoutConfig for Box */
+static inline Clay_LayoutConfig ClayKit_BoxLayout(ClayKit_BoxConfig cfg) {
+    Clay_LayoutConfig layout;
+    layout.sizing = cfg.sizing;
+    layout.padding.left = cfg.padding;
+    layout.padding.right = cfg.padding;
+    layout.padding.top = cfg.padding;
+    layout.padding.bottom = cfg.padding;
+    layout.childGap = 0;
+    layout.childAlignment.x = CLAY_ALIGN_X_LEFT;
+    layout.childAlignment.y = CLAY_ALIGN_Y_TOP;
+    layout.layoutDirection = CLAY_LEFT_TO_RIGHT;
+    return layout;
+}
+
+/* Create Clay_LayoutConfig for Flex */
+static inline Clay_LayoutConfig ClayKit_FlexLayout(ClayKit_FlexConfig cfg) {
+    Clay_LayoutConfig layout;
+    layout.sizing = cfg.sizing;
+    layout.padding.left = cfg.padding;
+    layout.padding.right = cfg.padding;
+    layout.padding.top = cfg.padding;
+    layout.padding.bottom = cfg.padding;
+    layout.childGap = cfg.gap;
+    layout.childAlignment = cfg.align;
+    layout.layoutDirection = cfg.direction;
+    return layout;
+}
+
+/* Create Clay_LayoutConfig for Stack */
+static inline Clay_LayoutConfig ClayKit_StackLayout(ClayKit_StackConfig cfg) {
+    Clay_LayoutConfig layout;
+    layout.sizing = cfg.sizing;
+    layout.padding.left = cfg.padding;
+    layout.padding.right = cfg.padding;
+    layout.padding.top = cfg.padding;
+    layout.padding.bottom = cfg.padding;
+    layout.childGap = cfg.gap;
+    layout.childAlignment = cfg.align;
+    layout.layoutDirection = (cfg.direction == CLAYKIT_STACK_VERTICAL)
+        ? CLAY_TOP_TO_BOTTOM : CLAY_LEFT_TO_RIGHT;
+    return layout;
+}
+
+/* Create Clay_LayoutConfig for Center */
+static inline Clay_LayoutConfig ClayKit_CenterLayout(Clay_Sizing sizing) {
+    Clay_LayoutConfig layout;
+    layout.sizing = sizing;
+    layout.padding.left = 0;
+    layout.padding.right = 0;
+    layout.padding.top = 0;
+    layout.padding.bottom = 0;
+    layout.childGap = 0;
+    layout.childAlignment.x = CLAY_ALIGN_X_CENTER;
+    layout.childAlignment.y = CLAY_ALIGN_Y_CENTER;
+    layout.layoutDirection = CLAY_LEFT_TO_RIGHT;
+    return layout;
+}
+
+/* Create Clay_LayoutConfig for Container */
+static inline Clay_LayoutConfig ClayKit_ContainerLayout(ClayKit_ContainerConfig cfg) {
+    uint16_t max_w = cfg.max_width > 0 ? cfg.max_width : 1200;
+    Clay_LayoutConfig layout;
+    layout.sizing.width.type = CLAY__SIZING_TYPE_GROW;
+    layout.sizing.width.size.minMax.max = (float)max_w;
+    layout.sizing.height.type = CLAY__SIZING_TYPE_FIT;
+    layout.padding.left = cfg.padding;
+    layout.padding.right = cfg.padding;
+    layout.padding.top = 0;
+    layout.padding.bottom = 0;
+    layout.childGap = 0;
+    layout.childAlignment.x = CLAY_ALIGN_X_LEFT;
+    layout.childAlignment.y = CLAY_ALIGN_Y_TOP;
+    layout.layoutDirection = CLAY_TOP_TO_BOTTOM;
+    return layout;
+}
+
+/* Create Clay_LayoutConfig for Spacer (grows to fill available space) */
+static inline Clay_LayoutConfig ClayKit_SpacerLayout(void) {
+    Clay_LayoutConfig layout;
+    layout.sizing.width.type = CLAY__SIZING_TYPE_GROW;
+    layout.sizing.height.type = CLAY__SIZING_TYPE_GROW;
+    layout.padding.left = 0;
+    layout.padding.right = 0;
+    layout.padding.top = 0;
+    layout.padding.bottom = 0;
+    layout.childGap = 0;
+    layout.childAlignment.x = CLAY_ALIGN_X_LEFT;
+    layout.childAlignment.y = CLAY_ALIGN_Y_TOP;
+    layout.layoutDirection = CLAY_LEFT_TO_RIGHT;
+    return layout;
+}
+
+/* ============================================================================
+ * Layout Primitives - Macros
+ * These wrap CLAY() to provide ClayKit-style components
+ * ============================================================================ */
+
+/* CLAYKIT_BOX: Basic container with optional background, border, radius */
+#define CLAYKIT_BOX(id, cfg) \
+    CLAY(id, { \
+        .layout = ClayKit_BoxLayout(cfg), \
+        .backgroundColor = (cfg).bg, \
+        .cornerRadius = CLAY_CORNER_RADIUS((cfg).radius), \
+        .border = { .color = (cfg).border_color, .width = CLAY_BORDER_ALL((cfg).border_width) } \
+    })
+
+/* CLAYKIT_FLEX: Flexible container with direction and gap */
+#define CLAYKIT_FLEX(id, cfg) \
+    CLAY(id, { \
+        .layout = ClayKit_FlexLayout(cfg), \
+        .backgroundColor = (cfg).bg \
+    })
+
+/* CLAYKIT_VSTACK: Vertical stack (top to bottom) */
+#define CLAYKIT_VSTACK(id, cfg) \
+    CLAY(id, { \
+        .layout = ClayKit_StackLayout((ClayKit_StackConfig){ \
+            .direction = CLAYKIT_STACK_VERTICAL, \
+            .gap = (cfg).gap, \
+            .align = (cfg).align, \
+            .padding = (cfg).padding, \
+            .sizing = (cfg).sizing, \
+            .bg = (cfg).bg \
+        }), \
+        .backgroundColor = (cfg).bg \
+    })
+
+/* CLAYKIT_HSTACK: Horizontal stack (left to right) */
+#define CLAYKIT_HSTACK(id, cfg) \
+    CLAY(id, { \
+        .layout = ClayKit_StackLayout((ClayKit_StackConfig){ \
+            .direction = CLAYKIT_STACK_HORIZONTAL, \
+            .gap = (cfg).gap, \
+            .align = (cfg).align, \
+            .padding = (cfg).padding, \
+            .sizing = (cfg).sizing, \
+            .bg = (cfg).bg \
+        }), \
+        .backgroundColor = (cfg).bg \
+    })
+
+/* CLAYKIT_CENTER: Centers children both horizontally and vertically */
+#define CLAYKIT_CENTER(id, sizing) \
+    CLAY(id, { .layout = ClayKit_CenterLayout(sizing) })
+
+/* CLAYKIT_CONTAINER: Centered container with max-width */
+#define CLAYKIT_CONTAINER(id, cfg) \
+    CLAY(id, { \
+        .layout = ClayKit_ContainerLayout(cfg), \
+        .backgroundColor = (cfg).bg \
+    })
+
+/* CLAYKIT_SPACER: Grows to fill available space */
+#define CLAYKIT_SPACER(id) \
+    CLAY(id, { .layout = ClayKit_SpacerLayout() })
+
+/* ============================================================================
  * API Function Declarations
  * ============================================================================ */
 
