@@ -7,6 +7,11 @@ tests/test_clay_kit
 *.so
 *.exe
 
+# Zig build artifacts
+zig-out/
+zig-cache/
+.zig-cache/
+
 # IDE/editor files
 .vscode/
 .idea/

@@ -1,0 +1,19 @@
+.{
+    .name = "claykit-zig-example",
+    .version = "0.1.0",
+    .dependencies = .{
+        .zclay = .{
+            .url = "git+https://github.com/johan0A/clay-zig-bindings?ref=v0.2.2+0.14#18cc9c148f02c3f00f824cc3a36db5030fd3de34",
+            .hash = "zclay-0.2.2-Ej1rkJfRAABn4fTSKQ1Rn54ssdmyCsuBT3zjrdhSxTO4",
+        },
+        .raylib_zig = .{
+            .url = "https://github.com/raylib-zig/raylib-zig/archive/refs/heads/master.tar.gz",
+            .hash = "raylib_zig-5.6.0-dev-KE8REL5MBQAf3p497t52Xw9P7ojndIkVOWPXnLiLLw2P",
+        },
+    },
+    .paths = .{
+        "build.zig",
+        "build.zig.zon",
+        "src",
+    },
+}
