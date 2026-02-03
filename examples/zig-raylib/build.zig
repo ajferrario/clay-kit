@@ -41,13 +41,37 @@ pub fn build(b: *std.Build) void {
         .root_module = root_module,
     });
 
-    // Compile clay_kit.c (C implementation)
+    // Get clay dependency (same version as zclay uses)
+    const clay_dep = b.dependency("clay", .{});
+
+    // Build clay library using addLibrary
+    const clay_lib = b.addLibrary(.{
+        .name = "clay",
+        .linkage = .static,
+        .root_module = b.createModule(.{
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+    clay_lib.addCSourceFile(.{
+        .file = b.addWriteFiles().add("clay.c",
+            \\#define CLAY_IMPLEMENTATION
+            \\#include "clay.h"
+        ),
+        .flags = &.{"-std=c99"},
+    });
+    clay_lib.addIncludePath(clay_dep.path(""));
+
+    // Link clay library to executable
+    exe.linkLibrary(clay_lib);
+
+    // Compile clay_kit.c
     exe.addCSourceFile(.{
         .file = b.path("../../clay_kit.c"),
         .flags = &.{"-std=c99"},
     });
     exe.addIncludePath(b.path("../../"));
-    exe.addIncludePath(b.path("../../vendor"));
+    exe.addIncludePath(clay_dep.path(""));
 
     // Link raylib
     const raylib_artifact = raylib_dep.artifact("raylib");

@@ -373,6 +373,19 @@ pub const BadgeConfig = extern struct {
     size: Size = .md,
 };
 
+/// Badge computed style - for renderers that need raw values
+pub const BadgeStyle = extern struct {
+    bg_color: Color,
+    text_color: Color,
+    border_color: Color,
+    border_width: u16,
+    pad_x: u16,
+    pad_y: u16,
+    font_size: u16,
+    font_id: u16,
+    corner_radius: u16,
+};
+
 // ============================================================================
 // Button Configuration
 // ============================================================================
@@ -464,7 +477,8 @@ extern fn ClayKit_GetRadius(theme: *Theme, size: Size) u16;
 // We expose simpler Zig wrappers below
 extern fn ClayKit_TextStyle(ctx: *Context, cfg: TextConfig) zclay.TextElementConfig;
 extern fn ClayKit_HeadingStyle(ctx: *Context, cfg: HeadingConfig) zclay.TextElementConfig;
-extern fn ClayKit_Badge(ctx: *Context, text: zclay.String, cfg: BadgeConfig) void;
+// Badge - compute style for Zig to render with zclay
+extern fn ClayKit_ComputeBadgeStyle(ctx: *Context, cfg: BadgeConfig) BadgeStyle;
 
 // Button helper functions
 extern fn ClayKit_ButtonBgColor(ctx: *Context, cfg: ButtonConfig, hovered: bool) Color;
@@ -591,9 +605,33 @@ pub fn headingStyle(ctx: *Context, cfg: HeadingConfig) zclay.TextElementConfig {
     return ClayKit_HeadingStyle(ctx, cfg);
 }
 
-/// Render a badge element (must be called within a zclay layout context)
+/// Compute badge style (for custom rendering)
+pub fn computeBadgeStyle(ctx: *Context, cfg: BadgeConfig) BadgeStyle {
+    return ClayKit_ComputeBadgeStyle(ctx, cfg);
+}
+
+/// Render a badge element using zclay (must be called within a zclay layout context)
 pub fn badge(ctx: *Context, text: []const u8, cfg: BadgeConfig) void {
-    ClayKit_Badge(ctx, zclay.String.fromRuntimeSlice(text), cfg);
+    const style = ClayKit_ComputeBadgeStyle(ctx, cfg);
+
+    zclay.UI()(.{
+        .layout = .{
+            .sizing = .{ .w = .fit, .h = .fit },
+            .padding = .{ .left = style.pad_x, .right = style.pad_x, .top = style.pad_y, .bottom = style.pad_y },
+        },
+        .background_color = .{ style.bg_color.r, style.bg_color.g, style.bg_color.b, style.bg_color.a },
+        .corner_radius = zclay.CornerRadius.all(@floatFromInt(style.corner_radius)),
+        .border = .{
+            .color = .{ style.border_color.r, style.border_color.g, style.border_color.b, style.border_color.a },
+            .width = .{ .left = style.border_width, .right = style.border_width, .top = style.border_width, .bottom = style.border_width },
+        },
+    })({
+        zclay.text(text, .{
+            .font_size = style.font_size,
+            .font_id = style.font_id,
+            .color = .{ style.text_color.r, style.text_color.g, style.text_color.b, style.text_color.a },
+        });
+    });
 }
 
 /// Get button background color (use with Clay_Hovered() for hover state)

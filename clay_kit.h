@@ -205,6 +205,19 @@ typedef struct ClayKit_BadgeConfig {
     ClayKit_Size size;                 /* Size affects padding and font */
 } ClayKit_BadgeConfig;
 
+/* Badge computed style - for renderers that need raw values */
+typedef struct ClayKit_BadgeStyle {
+    Clay_Color bg_color;
+    Clay_Color text_color;
+    Clay_Color border_color;
+    uint16_t border_width;
+    uint16_t pad_x;
+    uint16_t pad_y;
+    uint16_t font_size;
+    uint16_t font_id;
+    uint16_t corner_radius;
+} ClayKit_BadgeStyle;
+
 /* ============================================================================
  * Button Configuration
  * ============================================================================ */
@@ -533,6 +546,12 @@ Clay_TextElementConfig ClayKit_HeadingStyle(ClayKit_Context *ctx, ClayKit_Headin
 /* Badge - renders a badge element, call within a CLAY() block */
 void ClayKit_Badge(ClayKit_Context *ctx, Clay_String text, ClayKit_BadgeConfig cfg);
 
+/* Badge with raw string pointer - for FFI compatibility */
+void ClayKit_BadgeRaw(ClayKit_Context *ctx, const char *text, int32_t text_len, ClayKit_BadgeConfig cfg);
+
+/* Compute badge style - returns styling info for custom renderers (e.g., Zig using zclay) */
+ClayKit_BadgeStyle ClayKit_ComputeBadgeStyle(ClayKit_Context *ctx, ClayKit_BadgeConfig cfg);
+
 /* ============================================================================
  * Input Configuration
  * ============================================================================ */
@@ -556,6 +575,28 @@ typedef struct ClayKit_SwitchConfig {
     ClayKit_Size size;                 /* Size of switch */
     bool disabled;                     /* Disabled state */
 } ClayKit_SwitchConfig;
+
+/* ============================================================================
+ * Progress Configuration
+ * ============================================================================ */
+
+typedef struct ClayKit_ProgressConfig {
+    ClayKit_ColorScheme color_scheme;  /* Color of filled portion */
+    ClayKit_Size size;                 /* Height of progress bar */
+    bool striped;                      /* Show striped pattern (visual only) */
+} ClayKit_ProgressConfig;
+
+/* ============================================================================
+ * Slider Configuration
+ * ============================================================================ */
+
+typedef struct ClayKit_SliderConfig {
+    ClayKit_ColorScheme color_scheme;  /* Color of filled portion and thumb */
+    ClayKit_Size size;                 /* Height of track */
+    float min;                         /* Minimum value */
+    float max;                         /* Maximum value */
+    bool disabled;                     /* Disabled state */
+} ClayKit_SliderConfig;
 
 /* ============================================================================
  * Input Configuration
@@ -1247,71 +1288,86 @@ Clay_Color ClayKit_SwitchBgColor(ClayKit_Context *ctx, ClayKit_SwitchConfig cfg,
  * Badge
  * ---------------------------------------------------------------------------- */
 
-void ClayKit_Badge(ClayKit_Context *ctx, Clay_String text, ClayKit_BadgeConfig cfg) {
+ClayKit_BadgeStyle ClayKit_ComputeBadgeStyle(ClayKit_Context *ctx, ClayKit_BadgeConfig cfg) {
     ClayKit_Theme *theme = ctx->theme_ptr;
     Clay_Color scheme_color = ClayKit_GetSchemeColor(theme, cfg.color_scheme);
+    ClayKit_BadgeStyle style;
 
     /* Determine padding based on size */
-    uint16_t pad_x, pad_y, font_size;
     switch (cfg.size) {
         case CLAYKIT_SIZE_XS:
-            pad_x = 4; pad_y = 1; font_size = theme->font_size.xs; break;
+            style.pad_x = 4; style.pad_y = 1; style.font_size = theme->font_size.xs; break;
         case CLAYKIT_SIZE_SM:
-            pad_x = 6; pad_y = 2; font_size = theme->font_size.xs; break;
+            style.pad_x = 6; style.pad_y = 2; style.font_size = theme->font_size.xs; break;
         case CLAYKIT_SIZE_LG:
-            pad_x = 10; pad_y = 4; font_size = theme->font_size.md; break;
+            style.pad_x = 10; style.pad_y = 4; style.font_size = theme->font_size.md; break;
         case CLAYKIT_SIZE_XL:
-            pad_x = 12; pad_y = 5; font_size = theme->font_size.lg; break;
+            style.pad_x = 12; style.pad_y = 5; style.font_size = theme->font_size.lg; break;
         case CLAYKIT_SIZE_MD:
         default:
-            pad_x = 8; pad_y = 3; font_size = theme->font_size.sm; break;
+            style.pad_x = 8; style.pad_y = 3; style.font_size = theme->font_size.sm; break;
     }
 
     /* Determine colors based on variant */
-    Clay_Color bg_color, text_color, border_color;
-    uint16_t border_width = 0;
+    style.border_width = 0;
 
     switch (cfg.variant) {
         case CLAYKIT_BADGE_SOLID:
-            bg_color = scheme_color;
-            text_color = (Clay_Color){ 255, 255, 255, 255 };
-            border_color = (Clay_Color){ 0, 0, 0, 0 };
+            style.bg_color = scheme_color;
+            style.text_color = (Clay_Color){ 255, 255, 255, 255 };
+            style.border_color = (Clay_Color){ 0, 0, 0, 0 };
             break;
         case CLAYKIT_BADGE_SUBTLE:
-            bg_color = claykit_color_lighten(scheme_color, 0.85f);
-            text_color = scheme_color;
-            border_color = (Clay_Color){ 0, 0, 0, 0 };
+            style.bg_color = claykit_color_lighten(scheme_color, 0.85f);
+            style.text_color = scheme_color;
+            style.border_color = (Clay_Color){ 0, 0, 0, 0 };
             break;
         case CLAYKIT_BADGE_OUTLINE:
-            bg_color = (Clay_Color){ 0, 0, 0, 0 };
-            text_color = scheme_color;
-            border_color = scheme_color;
-            border_width = 1;
+            style.bg_color = (Clay_Color){ 0, 0, 0, 0 };
+            style.text_color = scheme_color;
+            style.border_color = scheme_color;
+            style.border_width = 1;
             break;
         default:
-            bg_color = scheme_color;
-            text_color = (Clay_Color){ 255, 255, 255, 255 };
-            border_color = (Clay_Color){ 0, 0, 0, 0 };
+            style.bg_color = scheme_color;
+            style.text_color = (Clay_Color){ 255, 255, 255, 255 };
+            style.border_color = (Clay_Color){ 0, 0, 0, 0 };
             break;
     }
 
+    style.font_id = theme->font_id.body;
+    style.corner_radius = theme->radius.full;
+
+    return style;
+}
+
+void ClayKit_BadgeRaw(ClayKit_Context *ctx, const char *text, int32_t text_len, ClayKit_BadgeConfig cfg) {
+    ClayKit_BadgeStyle style = ClayKit_ComputeBadgeStyle(ctx, cfg);
+
+    /* Construct Clay_String from raw pointer */
+    Clay_String clay_text = { .isStaticallyAllocated = false, .length = text_len, .chars = text };
+
     /* Render badge container with text */
-    CLAY_AUTO_ID({
+    CLAY({
         .layout = {
             .sizing = { .width = CLAY_SIZING_FIT(0), .height = CLAY_SIZING_FIT(0) },
-            .padding = { pad_x, pad_x, pad_y, pad_y }
+            .padding = { style.pad_x, style.pad_x, style.pad_y, style.pad_y }
         },
-        .backgroundColor = bg_color,
-        .cornerRadius = CLAY_CORNER_RADIUS(theme->radius.full),
-        .border = { .color = border_color, .width = { border_width, border_width, border_width, border_width, 0 } }
+        .backgroundColor = style.bg_color,
+        .cornerRadius = CLAY_CORNER_RADIUS(style.corner_radius),
+        .border = { .color = style.border_color, .width = { style.border_width, style.border_width, style.border_width, style.border_width, 0 } }
     }) {
-        CLAY_TEXT(text, CLAY_TEXT_CONFIG({
-            .fontSize = font_size,
-            .fontId = theme->font_id.body,
-            .textColor = text_color,
+        CLAY_TEXT(clay_text, CLAY_TEXT_CONFIG({
+            .fontSize = style.font_size,
+            .fontId = style.font_id,
+            .textColor = style.text_color,
             .wrapMode = CLAY_TEXT_WRAP_NONE
         }));
     }
+}
+
+void ClayKit_Badge(ClayKit_Context *ctx, Clay_String text, ClayKit_BadgeConfig cfg) {
+    ClayKit_BadgeRaw(ctx, text.chars, text.length, cfg);
 }
 
 #endif /* CLAYKIT_IMPLEMENTATION */

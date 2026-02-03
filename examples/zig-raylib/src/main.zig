@@ -84,10 +84,6 @@ pub fn main() !void {
     var ctx: claykit.Context = .{};
     claykit.init(&ctx, &theme, &state_buf);
 
-    // Demo state for interactive components
-    var checkbox_checked: bool = false;
-    var switch_on: bool = true;
-
     // Main loop
     while (!raylib.windowShouldClose()) {
         // Update Clay layout dimensions if window resized
@@ -141,11 +137,11 @@ pub fn main() !void {
                     .direction = .left_to_right,
                 },
             })({
-                // Left panel
+                // Left panel - simplified for debugging
                 zclay.UI()(.{
                     .id = zclay.ElementId.ID("LeftPanel"),
                     .layout = .{
-                        .sizing = .{ .w = zclay.SizingAxis.fixed(300), .h = .grow },
+                        .sizing = .{ .w = zclay.SizingAxis.fixed(300), .h = .fit },
                         .padding = zclay.Padding.all(16),
                         .child_gap = 12,
                         .direction = .top_to_bottom,
@@ -153,101 +149,13 @@ pub fn main() !void {
                     .background_color = toZclayColor(theme.secondary),
                     .corner_radius = zclay.CornerRadius.all(@floatFromInt(theme.radius.md)),
                 })({
-                    // Use ClayKit heading style
-                    zclay.text("Typography Demo", claykit.headingStyle(&ctx, .{ .size = .lg }));
+                    zclay.text("ClayKit Demo", claykit.headingStyle(&ctx, .{ .size = .lg }));
 
-                    // Use ClayKit text style
-                    zclay.text("Using ClayKit text styles:", claykit.textStyle(&ctx, .{ .size = .sm, .color = theme.muted }));
+                    // Single badge test
+                    claykit.badge(&ctx, "Badge", .{});
 
-                    // Show state count from context
-                    var buf: [32]u8 = undefined;
-                    const count_str = std.fmt.bufPrint(&buf, "{d} states allocated", .{ctx.state_count}) catch "?";
-                    zclay.text(count_str, claykit.textStyle(&ctx, .{ .size = .md }));
-
-                    // Badge demos
-                    zclay.UI()(.{
-                        .id = zclay.ElementId.ID("BadgeRow"),
-                        .layout = .{
-                            .sizing = .{ .w = .grow },
-                            .child_gap = 8,
-                            .direction = .left_to_right,
-                        },
-                    })({
-                        claykit.badge(&ctx, "Primary", .{ .color_scheme = .primary, .variant = .solid });
-                        claykit.badge(&ctx, "Success", .{ .color_scheme = .success, .variant = .solid });
-                        claykit.badge(&ctx, "Warning", .{ .color_scheme = .warning, .variant = .solid });
-                    });
-
-                    // Subtle badges
-                    zclay.UI()(.{
-                        .id = zclay.ElementId.ID("BadgeRow2"),
-                        .layout = .{
-                            .sizing = .{ .w = .grow },
-                            .child_gap = 8,
-                            .direction = .left_to_right,
-                        },
-                    })({
-                        claykit.badge(&ctx, "Subtle", .{ .color_scheme = .primary, .variant = .subtle });
-                        claykit.badge(&ctx, "Outline", .{ .color_scheme = .primary, .variant = .outline });
-                    });
-
-                    // Button demos
-                    zclay.text("Buttons (hover to see effect):", claykit.textStyle(&ctx, .{ .size = .sm, .color = theme.muted }));
-
-                    zclay.UI()(.{
-                        .id = zclay.ElementId.ID("ButtonRow"),
-                        .layout = .{
-                            .sizing = .{ .w = .grow },
-                            .child_gap = 8,
-                            .direction = .left_to_right,
-                        },
-                    })({
-                        _ = claykit.button(&ctx, "BtnSolid", "Solid", .{});
-                        _ = claykit.button(&ctx, "BtnOutline", "Outline", .{ .variant = .outline });
-                        _ = claykit.button(&ctx, "BtnGhost", "Ghost", .{ .variant = .ghost });
-                    });
-
-                    zclay.UI()(.{
-                        .id = zclay.ElementId.ID("ButtonRow2"),
-                        .layout = .{
-                            .sizing = .{ .w = .grow },
-                            .child_gap = 8,
-                            .direction = .left_to_right,
-                        },
-                    })({
-                        _ = claykit.button(&ctx, "BtnSuccess", "Success", .{ .color_scheme = .success });
-                        _ = claykit.button(&ctx, "BtnWarning", "Warning", .{ .color_scheme = .warning });
-                        _ = claykit.button(&ctx, "BtnError", "Error", .{ .color_scheme = .@"error" });
-                    });
-
-                    // Input demo
-                    zclay.text("Input:", claykit.textStyle(&ctx, .{ .size = .sm, .color = theme.muted }));
-                    _ = claykit.input(&ctx, "Input1", "Sample text", .{}, false);
-
-                    // Checkbox and switch demo
-                    zclay.text("Toggle controls:", claykit.textStyle(&ctx, .{ .size = .sm, .color = theme.muted }));
-
-                    zclay.UI()(.{
-                        .id = zclay.ElementId.ID("ToggleRow"),
-                        .layout = .{
-                            .sizing = .{ .w = .grow },
-                            .child_gap = 16,
-                            .direction = .left_to_right,
-                            .child_alignment = .{ .y = .center },
-                        },
-                    })({
-                        // Checkbox
-                        if (claykit.checkbox(&ctx, "Checkbox1", checkbox_checked, .{}) and raylib.isMouseButtonPressed(.left)) {
-                            checkbox_checked = !checkbox_checked;
-                        }
-                        zclay.text(if (checkbox_checked) "Checked" else "Unchecked", claykit.textStyle(&ctx, .{ .size = .sm }));
-
-                        // Switch
-                        if (claykit.switch_(&ctx, "Switch1", switch_on, .{}) and raylib.isMouseButtonPressed(.left)) {
-                            switch_on = !switch_on;
-                        }
-                        zclay.text(if (switch_on) "On" else "Off", claykit.textStyle(&ctx, .{ .size = .sm }));
-                    });
+                    // Single button test
+                    _ = claykit.button(&ctx, "Btn1", "Button", .{});
                 });
 
                 // Center panel
