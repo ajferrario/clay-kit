@@ -186,6 +186,35 @@ pub fn main() !void {
                         claykit.badge(&ctx, "Subtle", .{ .color_scheme = .primary, .variant = .subtle });
                         claykit.badge(&ctx, "Outline", .{ .color_scheme = .primary, .variant = .outline });
                     });
+
+                    // Button demos
+                    zclay.text("Buttons (hover to see effect):", claykit.textStyle(&ctx, .{ .size = .sm, .color = theme.muted }));
+
+                    zclay.UI()(.{
+                        .id = zclay.ElementId.ID("ButtonRow"),
+                        .layout = .{
+                            .sizing = .{ .w = .grow },
+                            .child_gap = 8,
+                            .direction = .left_to_right,
+                        },
+                    })({
+                        _ = claykit.button(&ctx, "BtnSolid", "Solid", .{});
+                        _ = claykit.button(&ctx, "BtnOutline", "Outline", .{ .variant = .outline });
+                        _ = claykit.button(&ctx, "BtnGhost", "Ghost", .{ .variant = .ghost });
+                    });
+
+                    zclay.UI()(.{
+                        .id = zclay.ElementId.ID("ButtonRow2"),
+                        .layout = .{
+                            .sizing = .{ .w = .grow },
+                            .child_gap = 8,
+                            .direction = .left_to_right,
+                        },
+                    })({
+                        _ = claykit.button(&ctx, "BtnSuccess", "Success", .{ .color_scheme = .success });
+                        _ = claykit.button(&ctx, "BtnWarning", "Warning", .{ .color_scheme = .warning });
+                        _ = claykit.button(&ctx, "BtnError", "Error", .{ .color_scheme = .@"error" });
+                    });
                 });
 
                 // Center panel

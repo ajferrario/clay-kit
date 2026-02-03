@@ -206,6 +206,32 @@ typedef struct ClayKit_BadgeConfig {
 } ClayKit_BadgeConfig;
 
 /* ============================================================================
+ * Button Configuration
+ * ============================================================================ */
+
+typedef enum ClayKit_ButtonVariant {
+    CLAYKIT_BUTTON_SOLID = 0,    /* Solid background */
+    CLAYKIT_BUTTON_OUTLINE = 1,  /* Transparent with border */
+    CLAYKIT_BUTTON_GHOST = 2     /* Transparent, no border */
+} ClayKit_ButtonVariant;
+
+typedef struct ClayKit_ButtonConfig {
+    ClayKit_ColorScheme color_scheme;  /* Color from theme palette */
+    ClayKit_ButtonVariant variant;     /* solid, outline, or ghost */
+    ClayKit_Size size;                 /* Size affects padding and font */
+    bool disabled;                     /* Disabled state */
+    ClayKit_Icon icon_left;            /* Icon on left side */
+    ClayKit_Icon icon_right;           /* Icon on right side */
+} ClayKit_ButtonConfig;
+
+/* Button interaction result */
+typedef struct ClayKit_ButtonResult {
+    bool clicked;   /* True if button was clicked this frame */
+    bool hovered;   /* True if mouse is over button */
+    bool pressed;   /* True if mouse is down on button */
+} ClayKit_ButtonResult;
+
+/* ============================================================================
  * Layout Primitives - Configuration Structs
  * ============================================================================ */
 
@@ -413,6 +439,37 @@ static inline Clay_LayoutConfig ClayKit_SpacerLayout(void) {
 #define CLAYKIT_SPACER(id) \
     CLAY(id, { .layout = ClayKit_SpacerLayout() })
 
+/* CLAYKIT_BUTTON: Interactive button with hover state
+ * Usage: CLAYKIT_BUTTON(ctx, CLAY_ID("myBtn"), cfg) { CLAY_TEXT(...); }
+ * Use Clay_Hovered() inside the block to check hover state */
+#define CLAYKIT_BUTTON(ctx, id, cfg) \
+    CLAY(id, { \
+        .layout = { \
+            .sizing = { .width = CLAY_SIZING_FIT(0), .height = CLAY_SIZING_FIT(0) }, \
+            .padding = { \
+                ClayKit_ButtonPaddingX(ctx, (cfg).size), \
+                ClayKit_ButtonPaddingX(ctx, (cfg).size), \
+                ClayKit_ButtonPaddingY(ctx, (cfg).size), \
+                ClayKit_ButtonPaddingY(ctx, (cfg).size) \
+            }, \
+            .childGap = 8, \
+            .childAlignment = { .x = CLAY_ALIGN_X_CENTER, .y = CLAY_ALIGN_Y_CENTER }, \
+            .layoutDirection = CLAY_LEFT_TO_RIGHT \
+        }, \
+        .backgroundColor = ClayKit_ButtonBgColor(ctx, cfg, Clay_Hovered()), \
+        .cornerRadius = CLAY_CORNER_RADIUS(ClayKit_ButtonRadius(ctx, (cfg).size)), \
+        .border = { \
+            .color = ClayKit_ButtonBorderColor(ctx, cfg), \
+            .width = { \
+                ClayKit_ButtonBorderWidth(cfg), \
+                ClayKit_ButtonBorderWidth(cfg), \
+                ClayKit_ButtonBorderWidth(cfg), \
+                ClayKit_ButtonBorderWidth(cfg), \
+                0 \
+            } \
+        } \
+    })
+
 /* ============================================================================
  * API Function Declarations
  * ============================================================================ */
@@ -448,6 +505,16 @@ Clay_TextElementConfig ClayKit_HeadingStyle(ClayKit_Context *ctx, ClayKit_Headin
 
 /* Badge - renders a badge element, call within a CLAY() block */
 void ClayKit_Badge(ClayKit_Context *ctx, Clay_String text, ClayKit_BadgeConfig cfg);
+
+/* Button helper functions for computing styles */
+Clay_Color ClayKit_ButtonBgColor(ClayKit_Context *ctx, ClayKit_ButtonConfig cfg, bool hovered);
+Clay_Color ClayKit_ButtonTextColor(ClayKit_Context *ctx, ClayKit_ButtonConfig cfg);
+Clay_Color ClayKit_ButtonBorderColor(ClayKit_Context *ctx, ClayKit_ButtonConfig cfg);
+uint16_t ClayKit_ButtonBorderWidth(ClayKit_ButtonConfig cfg);
+uint16_t ClayKit_ButtonPaddingX(ClayKit_Context *ctx, ClayKit_Size size);
+uint16_t ClayKit_ButtonPaddingY(ClayKit_Context *ctx, ClayKit_Size size);
+uint16_t ClayKit_ButtonRadius(ClayKit_Context *ctx, ClayKit_Size size);
+uint16_t ClayKit_ButtonFontSize(ClayKit_Context *ctx, ClayKit_Size size);
 
 /* ============================================================================
  * Theme Presets (defined in implementation)
@@ -848,6 +915,112 @@ static Clay_Color claykit_color_lighten(Clay_Color c, float amount) {
         c.a
     };
 }
+
+/* ----------------------------------------------------------------------------
+ * Button Helper Functions
+ * ---------------------------------------------------------------------------- */
+
+static Clay_Color claykit_color_darken(Clay_Color c, float amount) {
+    return (Clay_Color){
+        c.r * (1.0f - amount),
+        c.g * (1.0f - amount),
+        c.b * (1.0f - amount),
+        c.a
+    };
+}
+
+uint16_t ClayKit_ButtonPaddingX(ClayKit_Context *ctx, ClayKit_Size size) {
+    (void)ctx;
+    switch (size) {
+        case CLAYKIT_SIZE_XS: return 8;
+        case CLAYKIT_SIZE_SM: return 12;
+        case CLAYKIT_SIZE_LG: return 20;
+        case CLAYKIT_SIZE_XL: return 24;
+        case CLAYKIT_SIZE_MD:
+        default: return 16;
+    }
+}
+
+uint16_t ClayKit_ButtonPaddingY(ClayKit_Context *ctx, ClayKit_Size size) {
+    (void)ctx;
+    switch (size) {
+        case CLAYKIT_SIZE_XS: return 4;
+        case CLAYKIT_SIZE_SM: return 6;
+        case CLAYKIT_SIZE_LG: return 12;
+        case CLAYKIT_SIZE_XL: return 14;
+        case CLAYKIT_SIZE_MD:
+        default: return 8;
+    }
+}
+
+uint16_t ClayKit_ButtonRadius(ClayKit_Context *ctx, ClayKit_Size size) {
+    ClayKit_Theme *theme = ctx->theme_ptr;
+    switch (size) {
+        case CLAYKIT_SIZE_XS:
+        case CLAYKIT_SIZE_SM: return theme->radius.sm;
+        case CLAYKIT_SIZE_LG:
+        case CLAYKIT_SIZE_XL: return theme->radius.lg;
+        case CLAYKIT_SIZE_MD:
+        default: return theme->radius.md;
+    }
+}
+
+uint16_t ClayKit_ButtonFontSize(ClayKit_Context *ctx, ClayKit_Size size) {
+    return ClayKit_GetFontSize(ctx->theme_ptr, size);
+}
+
+Clay_Color ClayKit_ButtonBgColor(ClayKit_Context *ctx, ClayKit_ButtonConfig cfg, bool hovered) {
+    ClayKit_Theme *theme = ctx->theme_ptr;
+    Clay_Color scheme_color = ClayKit_GetSchemeColor(theme, cfg.color_scheme);
+
+    if (cfg.disabled) {
+        return theme->border;
+    }
+
+    switch (cfg.variant) {
+        case CLAYKIT_BUTTON_SOLID:
+            return hovered ? claykit_color_darken(scheme_color, 0.1f) : scheme_color;
+        case CLAYKIT_BUTTON_OUTLINE:
+        case CLAYKIT_BUTTON_GHOST:
+            return hovered ? claykit_color_lighten(scheme_color, 0.9f) : (Clay_Color){ 0, 0, 0, 0 };
+        default:
+            return scheme_color;
+    }
+}
+
+Clay_Color ClayKit_ButtonTextColor(ClayKit_Context *ctx, ClayKit_ButtonConfig cfg) {
+    ClayKit_Theme *theme = ctx->theme_ptr;
+    Clay_Color scheme_color = ClayKit_GetSchemeColor(theme, cfg.color_scheme);
+
+    if (cfg.disabled) {
+        return theme->muted;
+    }
+
+    switch (cfg.variant) {
+        case CLAYKIT_BUTTON_SOLID:
+            return (Clay_Color){ 255, 255, 255, 255 };
+        case CLAYKIT_BUTTON_OUTLINE:
+        case CLAYKIT_BUTTON_GHOST:
+            return scheme_color;
+        default:
+            return (Clay_Color){ 255, 255, 255, 255 };
+    }
+}
+
+Clay_Color ClayKit_ButtonBorderColor(ClayKit_Context *ctx, ClayKit_ButtonConfig cfg) {
+    if (cfg.disabled || cfg.variant != CLAYKIT_BUTTON_OUTLINE) {
+        return (Clay_Color){ 0, 0, 0, 0 };
+    }
+    return ClayKit_GetSchemeColor(ctx->theme_ptr, cfg.color_scheme);
+}
+
+uint16_t ClayKit_ButtonBorderWidth(ClayKit_ButtonConfig cfg) {
+    return (cfg.variant == CLAYKIT_BUTTON_OUTLINE && !cfg.disabled) ? 1 : 0;
+}
+
+/* ----------------------------------------------------------------------------
+ * Badge
+ * ---------------------------------------------------------------------------- */
 
 void ClayKit_Badge(ClayKit_Context *ctx, Clay_String text, ClayKit_BadgeConfig cfg) {
     ClayKit_Theme *theme = ctx->theme_ptr;

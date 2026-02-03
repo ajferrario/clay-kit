@@ -374,6 +374,31 @@ pub const BadgeConfig = extern struct {
 };
 
 // ============================================================================
+// Button Configuration
+// ============================================================================
+
+pub const ButtonVariant = enum(c_int) {
+    solid = 0, // Solid background
+    outline = 1, // Transparent with border
+    ghost = 2, // Transparent, no border
+};
+
+pub const ButtonConfig = extern struct {
+    color_scheme: ColorScheme = .primary,
+    variant: ButtonVariant = .solid,
+    size: Size = .md,
+    disabled: bool = false,
+    icon_left: Icon = .{},
+    icon_right: Icon = .{},
+};
+
+pub const ButtonResult = extern struct {
+    clicked: bool = false,
+    hovered: bool = false,
+    pressed: bool = false,
+};
+
+// ============================================================================
 // External C Functions
 // ============================================================================
 
@@ -402,6 +427,16 @@ extern fn ClayKit_GetRadius(theme: *Theme, size: Size) u16;
 extern fn ClayKit_TextStyle(ctx: *Context, cfg: TextConfig) zclay.TextElementConfig;
 extern fn ClayKit_HeadingStyle(ctx: *Context, cfg: HeadingConfig) zclay.TextElementConfig;
 extern fn ClayKit_Badge(ctx: *Context, text: zclay.String, cfg: BadgeConfig) void;
+
+// Button helper functions
+extern fn ClayKit_ButtonBgColor(ctx: *Context, cfg: ButtonConfig, hovered: bool) Color;
+extern fn ClayKit_ButtonTextColor(ctx: *Context, cfg: ButtonConfig) Color;
+extern fn ClayKit_ButtonBorderColor(ctx: *Context, cfg: ButtonConfig) Color;
+extern fn ClayKit_ButtonBorderWidth(cfg: ButtonConfig) u16;
+extern fn ClayKit_ButtonPaddingX(ctx: *Context, size: Size) u16;
+extern fn ClayKit_ButtonPaddingY(ctx: *Context, size: Size) u16;
+extern fn ClayKit_ButtonRadius(ctx: *Context, size: Size) u16;
+extern fn ClayKit_ButtonFontSize(ctx: *Context, size: Size) u16;
 
 // Theme presets (extern const)
 extern const CLAYKIT_THEME_LIGHT: Theme;
@@ -504,6 +539,92 @@ pub fn headingStyle(ctx: *Context, cfg: HeadingConfig) zclay.TextElementConfig {
 /// Render a badge element (must be called within a zclay layout context)
 pub fn badge(ctx: *Context, text: []const u8, cfg: BadgeConfig) void {
     ClayKit_Badge(ctx, zclay.String.fromRuntimeSlice(text), cfg);
+}
+
+/// Get button background color (use with Clay_Hovered() for hover state)
+pub fn buttonBgColor(ctx: *Context, cfg: ButtonConfig, hovered: bool) Color {
+    return ClayKit_ButtonBgColor(ctx, cfg, hovered);
+}
+
+/// Get button text color
+pub fn buttonTextColor(ctx: *Context, cfg: ButtonConfig) Color {
+    return ClayKit_ButtonTextColor(ctx, cfg);
+}
+
+/// Get button border color
+pub fn buttonBorderColor(ctx: *Context, cfg: ButtonConfig) Color {
+    return ClayKit_ButtonBorderColor(ctx, cfg);
+}
+
+/// Get button border width
+pub fn buttonBorderWidth(cfg: ButtonConfig) u16 {
+    return ClayKit_ButtonBorderWidth(cfg);
+}
+
+/// Get button horizontal padding
+pub fn buttonPaddingX(ctx: *Context, size: Size) u16 {
+    return ClayKit_ButtonPaddingX(ctx, size);
+}
+
+/// Get button vertical padding
+pub fn buttonPaddingY(ctx: *Context, size: Size) u16 {
+    return ClayKit_ButtonPaddingY(ctx, size);
+}
+
+/// Get button corner radius
+pub fn buttonRadius(ctx: *Context, size: Size) u16 {
+    return ClayKit_ButtonRadius(ctx, size);
+}
+
+/// Get button font size
+pub fn buttonFontSize(ctx: *Context, size: Size) u16 {
+    return ClayKit_ButtonFontSize(ctx, size);
+}
+
+/// Render a button using zclay - returns whether the button was hovered
+/// Example:
+///   const hovered = claykit.button(&ctx, "myBtn", "Click Me", .{ .color_scheme = .primary });
+pub fn button(ctx: *Context, id: []const u8, text: []const u8, cfg: ButtonConfig) bool {
+    const pad_x = ClayKit_ButtonPaddingX(ctx, cfg.size);
+    const pad_y = ClayKit_ButtonPaddingY(ctx, cfg.size);
+    const radius = ClayKit_ButtonRadius(ctx, cfg.size);
+    const font_size = ClayKit_ButtonFontSize(ctx, cfg.size);
+    const border_width = ClayKit_ButtonBorderWidth(cfg);
+
+    var hovered: bool = false;
+
+    zclay.UI()(.{
+        .id = zclay.ElementId.ID(id),
+        .layout = .{
+            .sizing = .{ .w = .fit, .h = .fit },
+            .padding = .{ .left = pad_x, .right = pad_x, .top = pad_y, .bottom = pad_y },
+            .child_gap = 8,
+            .child_alignment = .{ .x = .center, .y = .center },
+            .direction = .left_to_right,
+        },
+        .background_color = blk: {
+            hovered = zclay.hovered();
+            const bg = ClayKit_ButtonBgColor(ctx, cfg, hovered);
+            break :blk .{ bg.r, bg.g, bg.b, bg.a };
+        },
+        .corner_radius = zclay.CornerRadius.all(@floatFromInt(radius)),
+        .border = .{
+            .color = blk: {
+                const c = ClayKit_ButtonBorderColor(ctx, cfg);
+                break :blk .{ c.r, c.g, c.b, c.a };
+            },
+            .width = .{ .left = border_width, .right = border_width, .top = border_width, .bottom = border_width },
+        },
+    })({
+        const text_color = ClayKit_ButtonTextColor(ctx, cfg);
+        zclay.text(text, .{
+            .font_size = font_size,
+            .font_id = ctx.theme().font_id.body,
+            .color = .{ text_color.r, text_color.g, text_color.b, text_color.a },
+        });
+    });
+
+    return hovered;
 }
 
 // ============================================================================
