@@ -149,22 +149,42 @@ pub fn main() !void {
                     .background_color = toZclayColor(theme.secondary),
                     .corner_radius = zclay.CornerRadius.all(@floatFromInt(theme.radius.md)),
                 })({
-                    zclay.text("Theme: Light", .{
-                        .font_size = theme.font_size.lg,
-                        .color = toZclayColor(theme.fg),
-                    });
+                    // Use ClayKit heading style
+                    zclay.text("Typography Demo", claykit.headingStyle(&ctx, .{ .size = .lg }));
 
-                    zclay.text("ClayKit State Count:", .{
-                        .font_size = theme.font_size.md,
-                        .color = toZclayColor(theme.muted),
-                    });
+                    // Use ClayKit text style
+                    zclay.text("Using ClayKit text styles:", claykit.textStyle(&ctx, .{ .size = .sm, .color = theme.muted }));
 
                     // Show state count from context
                     var buf: [32]u8 = undefined;
-                    const count_str = std.fmt.bufPrint(&buf, "{d} states", .{ctx.state_count}) catch "?";
-                    zclay.text(count_str, .{
-                        .font_size = theme.font_size.md,
-                        .color = toZclayColor(theme.fg),
+                    const count_str = std.fmt.bufPrint(&buf, "{d} states allocated", .{ctx.state_count}) catch "?";
+                    zclay.text(count_str, claykit.textStyle(&ctx, .{ .size = .md }));
+
+                    // Badge demos
+                    zclay.UI()(.{
+                        .id = zclay.ElementId.ID("BadgeRow"),
+                        .layout = .{
+                            .sizing = .{ .w = .grow },
+                            .child_gap = 8,
+                            .direction = .left_to_right,
+                        },
+                    })({
+                        claykit.badge(&ctx, "Primary", .{ .color_scheme = .primary, .variant = .solid });
+                        claykit.badge(&ctx, "Success", .{ .color_scheme = .success, .variant = .solid });
+                        claykit.badge(&ctx, "Warning", .{ .color_scheme = .warning, .variant = .solid });
+                    });
+
+                    // Subtle badges
+                    zclay.UI()(.{
+                        .id = zclay.ElementId.ID("BadgeRow2"),
+                        .layout = .{
+                            .sizing = .{ .w = .grow },
+                            .child_gap = 8,
+                            .direction = .left_to_right,
+                        },
+                    })({
+                        claykit.badge(&ctx, "Subtle", .{ .color_scheme = .primary, .variant = .subtle });
+                        claykit.badge(&ctx, "Outline", .{ .color_scheme = .primary, .variant = .outline });
                     });
                 });
 

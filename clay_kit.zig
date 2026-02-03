@@ -344,6 +344,36 @@ pub const ContainerConfig = extern struct {
 };
 
 // ============================================================================
+// Typography Configuration
+// ============================================================================
+
+pub const TextConfig = extern struct {
+    size: Size = .md, // Font size from theme scale
+    color: Color = .{}, // Text color (default: theme fg)
+    font_id: u16 = 0, // Font ID (default: theme body font)
+    letter_spacing: u16 = 0, // Letter spacing in pixels
+    line_height: u16 = 0, // Line height (0 = auto)
+};
+
+pub const HeadingConfig = extern struct {
+    size: Size = .xl, // XS=h6, SM=h5, MD=h4, LG=h3, XL=h2
+    color: Color = .{}, // Text color (default: theme fg)
+    font_id: u16 = 0, // Font ID (default: theme heading font)
+};
+
+pub const BadgeVariant = enum(c_int) {
+    solid = 0, // Solid background
+    subtle = 1, // Light background, colored text
+    outline = 2, // Transparent with border
+};
+
+pub const BadgeConfig = extern struct {
+    color_scheme: ColorScheme = .primary,
+    variant: BadgeVariant = .solid,
+    size: Size = .md,
+};
+
+// ============================================================================
 // External C Functions
 // ============================================================================
 
@@ -366,6 +396,12 @@ extern fn ClayKit_GetSchemeColor(theme: *Theme, scheme: ColorScheme) Color;
 extern fn ClayKit_GetSpacing(theme: *Theme, size: Size) u16;
 extern fn ClayKit_GetFontSize(theme: *Theme, size: Size) u16;
 extern fn ClayKit_GetRadius(theme: *Theme, size: Size) u16;
+
+// Typography - note: these return Clay_TextElementConfig which is a zclay type
+// We expose simpler Zig wrappers below
+extern fn ClayKit_TextStyle(ctx: *Context, cfg: TextConfig) zclay.TextElementConfig;
+extern fn ClayKit_HeadingStyle(ctx: *Context, cfg: HeadingConfig) zclay.TextElementConfig;
+extern fn ClayKit_Badge(ctx: *Context, text: zclay.String, cfg: BadgeConfig) void;
 
 // Theme presets (extern const)
 extern const CLAYKIT_THEME_LIGHT: Theme;
@@ -453,6 +489,21 @@ pub fn getFontSize(theme: *Theme, size: Size) u16 {
 /// Get border radius from size enum
 pub fn getRadius(theme: *Theme, size: Size) u16 {
     return ClayKit_GetRadius(theme, size);
+}
+
+/// Get a text style config for use with zclay.text()
+pub fn textStyle(ctx: *Context, cfg: TextConfig) zclay.TextElementConfig {
+    return ClayKit_TextStyle(ctx, cfg);
+}
+
+/// Get a heading style config for use with zclay.text()
+pub fn headingStyle(ctx: *Context, cfg: HeadingConfig) zclay.TextElementConfig {
+    return ClayKit_HeadingStyle(ctx, cfg);
+}
+
+/// Render a badge element (must be called within a zclay layout context)
+pub fn badge(ctx: *Context, text: []const u8, cfg: BadgeConfig) void {
+    ClayKit_Badge(ctx, zclay.String.fromRuntimeSlice(text), cfg);
 }
 
 // ============================================================================

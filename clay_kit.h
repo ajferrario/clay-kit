@@ -176,6 +176,36 @@ typedef enum ClayKit_Modifier {
 } ClayKit_Modifier;
 
 /* ============================================================================
+ * Typography Configuration
+ * ============================================================================ */
+
+typedef struct ClayKit_TextConfig {
+    ClayKit_Size size;           /* Font size from theme scale */
+    Clay_Color color;            /* Text color (default: theme fg) */
+    uint16_t font_id;            /* Font ID (default: theme body font) */
+    uint16_t letter_spacing;     /* Letter spacing in pixels */
+    uint16_t line_height;        /* Line height (0 = auto) */
+} ClayKit_TextConfig;
+
+typedef struct ClayKit_HeadingConfig {
+    ClayKit_Size size;           /* XS=h6, SM=h5, MD=h4, LG=h3, XL=h2, default h1 uses XL */
+    Clay_Color color;            /* Text color (default: theme fg) */
+    uint16_t font_id;            /* Font ID (default: theme heading font) */
+} ClayKit_HeadingConfig;
+
+typedef enum ClayKit_BadgeVariant {
+    CLAYKIT_BADGE_SOLID = 0,     /* Solid background */
+    CLAYKIT_BADGE_SUBTLE = 1,    /* Light background, colored text */
+    CLAYKIT_BADGE_OUTLINE = 2    /* Transparent with border */
+} ClayKit_BadgeVariant;
+
+typedef struct ClayKit_BadgeConfig {
+    ClayKit_ColorScheme color_scheme;  /* Color from theme palette */
+    ClayKit_BadgeVariant variant;      /* solid, subtle, or outline */
+    ClayKit_Size size;                 /* Size affects padding and font */
+} ClayKit_BadgeConfig;
+
+/* ============================================================================
  * Layout Primitives - Configuration Structs
  * ============================================================================ */
 
@@ -411,6 +441,13 @@ Clay_Color ClayKit_GetSchemeColor(ClayKit_Theme *theme, ClayKit_ColorScheme sche
 uint16_t ClayKit_GetSpacing(ClayKit_Theme *theme, ClayKit_Size size);
 uint16_t ClayKit_GetFontSize(ClayKit_Theme *theme, ClayKit_Size size);
 uint16_t ClayKit_GetRadius(ClayKit_Theme *theme, ClayKit_Size size);
+
+/* Typography - these return Clay_TextElementConfig for use with CLAY_TEXT */
+Clay_TextElementConfig ClayKit_TextStyle(ClayKit_Context *ctx, ClayKit_TextConfig cfg);
+Clay_TextElementConfig ClayKit_HeadingStyle(ClayKit_Context *ctx, ClayKit_HeadingConfig cfg);
+
+/* Badge - renders a badge element, call within a CLAY() block */
+void ClayKit_Badge(ClayKit_Context *ctx, Clay_String text, ClayKit_BadgeConfig cfg);
 
 /* ============================================================================
  * Theme Presets (defined in implementation)
@@ -747,6 +784,136 @@ bool ClayKit_InputHandleChar(ClayKit_InputState *s, uint32_t codepoint) {
     s->select_start = s->cursor;
 
     return true;
+}
+
+/* ----------------------------------------------------------------------------
+ * Typography
+ * ---------------------------------------------------------------------------- */
+
+Clay_TextElementConfig ClayKit_TextStyle(ClayKit_Context *ctx, ClayKit_TextConfig cfg) {
+    ClayKit_Theme *theme = ctx->theme_ptr;
+    Clay_TextElementConfig config = {0};
+
+    config.fontSize = cfg.size != 0
+        ? ClayKit_GetFontSize(theme, cfg.size)
+        : theme->font_size.md;
+
+    config.fontId = cfg.font_id != 0 ? cfg.font_id : theme->font_id.body;
+
+    config.textColor = (cfg.color.a != 0) ? cfg.color : theme->fg;
+
+    config.letterSpacing = cfg.letter_spacing;
+    config.lineHeight = cfg.line_height;
+    config.wrapMode = CLAY_TEXT_WRAP_WORDS;
+
+    return config;
+}
+
+Clay_TextElementConfig ClayKit_HeadingStyle(ClayKit_Context *ctx, ClayKit_HeadingConfig cfg) {
+    ClayKit_Theme *theme = ctx->theme_ptr;
+    Clay_TextElementConfig config = {0};
+
+    /* Heading sizes: XL=h1 (largest), LG=h2, MD=h3, SM=h4, XS=h5/h6 */
+    uint16_t size;
+    switch (cfg.size) {
+        case CLAYKIT_SIZE_XS: size = theme->font_size.md; break;   /* h5/h6 */
+        case CLAYKIT_SIZE_SM: size = theme->font_size.lg; break;   /* h4 */
+        case CLAYKIT_SIZE_MD: size = theme->font_size.xl; break;   /* h3 */
+        case CLAYKIT_SIZE_LG: size = theme->font_size.xl + 4; break; /* h2 */
+        case CLAYKIT_SIZE_XL: size = theme->font_size.xl + 8; break; /* h1 */
+        default:              size = theme->font_size.xl; break;
+    }
+    config.fontSize = size;
+
+    config.fontId = cfg.font_id != 0 ? cfg.font_id : theme->font_id.heading;
+
+    config.textColor = (cfg.color.a != 0) ? cfg.color : theme->fg;
+
+    config.letterSpacing = 0;
+    config.lineHeight = 0;
+    config.wrapMode = CLAY_TEXT_WRAP_WORDS;
+
+    return config;
+}
+
+/* Helper to create lighter variant of colors */
+static Clay_Color claykit_color_lighten(Clay_Color c, float amount) {
+    float r = c.r + (255.0f - c.r) * amount;
+    float g = c.g + (255.0f - c.g) * amount;
+    float b = c.b + (255.0f - c.b) * amount;
+    return (Clay_Color){
+        (r > 255.0f) ? 255.0f : r,
+        (g > 255.0f) ? 255.0f : g,
+        (b > 255.0f) ? 255.0f : b,
+        c.a
+    };
+}
+
+void ClayKit_Badge(ClayKit_Context *ctx, Clay_String text, ClayKit_BadgeConfig cfg) {
+    ClayKit_Theme *theme = ctx->theme_ptr;
+    Clay_Color scheme_color = ClayKit_GetSchemeColor(theme, cfg.color_scheme);
+
+    /* Determine padding based on size */
+    uint16_t pad_x, pad_y, font_size;
+    switch (cfg.size) {
+        case CLAYKIT_SIZE_XS:
+            pad_x = 4; pad_y = 1; font_size = theme->font_size.xs; break;
+        case CLAYKIT_SIZE_SM:
+            pad_x = 6; pad_y = 2; font_size = theme->font_size.xs; break;
+        case CLAYKIT_SIZE_LG:
+            pad_x = 10; pad_y = 4; font_size = theme->font_size.md; break;
+        case CLAYKIT_SIZE_XL:
+            pad_x = 12; pad_y = 5; font_size = theme->font_size.lg; break;
+        case CLAYKIT_SIZE_MD:
+        default:
+            pad_x = 8; pad_y = 3; font_size = theme->font_size.sm; break;
+    }
+
+    /* Determine colors based on variant */
+    Clay_Color bg_color, text_color, border_color;
+    uint16_t border_width = 0;
+
+    switch (cfg.variant) {
+        case CLAYKIT_BADGE_SOLID:
+            bg_color = scheme_color;
+            text_color = (Clay_Color){ 255, 255, 255, 255 };
+            border_color = (Clay_Color){ 0, 0, 0, 0 };
+            break;
+        case CLAYKIT_BADGE_SUBTLE:
+            bg_color = claykit_color_lighten(scheme_color, 0.85f);
+            text_color = scheme_color;
+            border_color = (Clay_Color){ 0, 0, 0, 0 };
+            break;
+        case CLAYKIT_BADGE_OUTLINE:
+            bg_color = (Clay_Color){ 0, 0, 0, 0 };
+            text_color = scheme_color;
+            border_color = scheme_color;
+            border_width = 1;
+            break;
+        default:
+            bg_color = scheme_color;
+            text_color = (Clay_Color){ 255, 255, 255, 255 };
+            border_color = (Clay_Color){ 0, 0, 0, 0 };
+            break;
+    }
+
+    /* Render badge container with text */
+    CLAY_AUTO_ID({
+        .layout = {
+            .sizing = { .width = CLAY_SIZING_FIT(0), .height = CLAY_SIZING_FIT(0) },
+            .padding = { pad_x, pad_x, pad_y, pad_y }
+        },
+        .backgroundColor = bg_color,
+        .cornerRadius = CLAY_CORNER_RADIUS(theme->radius.full),
+        .border = { .color = border_color, .width = { border_width, border_width, border_width, border_width, 0 } }
+    }) {
+        CLAY_TEXT(text, CLAY_TEXT_CONFIG({
+            .fontSize = font_size,
+            .fontId = theme->font_id.body,
+            .textColor = text_color,
+            .wrapMode = CLAY_TEXT_WRAP_NONE
+        }));
+    }
 }
 
 #endif /* CLAYKIT_IMPLEMENTATION */
