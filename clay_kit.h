@@ -537,6 +537,30 @@ void ClayKit_Badge(ClayKit_Context *ctx, Clay_String text, ClayKit_BadgeConfig c
  * Input Configuration
  * ============================================================================ */
 
+/* ============================================================================
+ * Checkbox Configuration
+ * ============================================================================ */
+
+typedef struct ClayKit_CheckboxConfig {
+    ClayKit_ColorScheme color_scheme;  /* Color when checked */
+    ClayKit_Size size;                 /* Size of checkbox */
+    bool disabled;                     /* Disabled state */
+} ClayKit_CheckboxConfig;
+
+/* ============================================================================
+ * Switch Configuration
+ * ============================================================================ */
+
+typedef struct ClayKit_SwitchConfig {
+    ClayKit_ColorScheme color_scheme;  /* Color when on */
+    ClayKit_Size size;                 /* Size of switch */
+    bool disabled;                     /* Disabled state */
+} ClayKit_SwitchConfig;
+
+/* ============================================================================
+ * Input Configuration
+ * ============================================================================ */
+
 typedef struct ClayKit_InputConfig {
     ClayKit_Size size;           /* Size affects padding and font */
     Clay_Color bg;               /* Background color (default: theme bg) */
@@ -562,6 +586,17 @@ uint16_t ClayKit_InputPaddingX(ClayKit_Context *ctx, ClayKit_Size size);
 uint16_t ClayKit_InputPaddingY(ClayKit_Context *ctx, ClayKit_Size size);
 uint16_t ClayKit_InputFontSize(ClayKit_Context *ctx, ClayKit_Size size);
 Clay_Color ClayKit_InputBorderColor(ClayKit_Context *ctx, ClayKit_InputConfig cfg, bool focused);
+
+/* Checkbox helper functions */
+uint16_t ClayKit_CheckboxSize(ClayKit_Context *ctx, ClayKit_Size size);
+Clay_Color ClayKit_CheckboxBgColor(ClayKit_Context *ctx, ClayKit_CheckboxConfig cfg, bool checked, bool hovered);
+Clay_Color ClayKit_CheckboxBorderColor(ClayKit_Context *ctx, ClayKit_CheckboxConfig cfg, bool checked);
+
+/* Switch helper functions */
+uint16_t ClayKit_SwitchWidth(ClayKit_Context *ctx, ClayKit_Size size);
+uint16_t ClayKit_SwitchHeight(ClayKit_Context *ctx, ClayKit_Size size);
+uint16_t ClayKit_SwitchKnobSize(ClayKit_Context *ctx, ClayKit_Size size);
+Clay_Color ClayKit_SwitchBgColor(ClayKit_Context *ctx, ClayKit_SwitchConfig cfg, bool on, bool hovered);
 
 /* ============================================================================
  * Theme Presets (defined in implementation)
@@ -1104,6 +1139,108 @@ Clay_Color ClayKit_InputBorderColor(ClayKit_Context *ctx, ClayKit_InputConfig cf
         return (cfg.focus_color.a != 0) ? cfg.focus_color : theme->primary;
     }
     return (cfg.border_color.a != 0) ? cfg.border_color : theme->border;
+}
+
+/* ----------------------------------------------------------------------------
+ * Checkbox Helper Functions
+ * ---------------------------------------------------------------------------- */
+
+uint16_t ClayKit_CheckboxSize(ClayKit_Context *ctx, ClayKit_Size size) {
+    (void)ctx;
+    switch (size) {
+        case CLAYKIT_SIZE_XS: return 14;
+        case CLAYKIT_SIZE_SM: return 16;
+        case CLAYKIT_SIZE_LG: return 22;
+        case CLAYKIT_SIZE_XL: return 26;
+        case CLAYKIT_SIZE_MD:
+        default: return 18;
+    }
+}
+
+Clay_Color ClayKit_CheckboxBgColor(ClayKit_Context *ctx, ClayKit_CheckboxConfig cfg, bool checked, bool hovered) {
+    ClayKit_Theme *theme = ctx->theme_ptr;
+
+    if (cfg.disabled) {
+        return checked ? theme->muted : theme->border;
+    }
+
+    Clay_Color scheme_color = ClayKit_GetSchemeColor(theme, cfg.color_scheme);
+
+    if (checked) {
+        return hovered ? claykit_color_darken(scheme_color, 0.1f) : scheme_color;
+    }
+
+    return hovered ? claykit_color_lighten(scheme_color, 0.95f) : theme->bg;
+}
+
+Clay_Color ClayKit_CheckboxBorderColor(ClayKit_Context *ctx, ClayKit_CheckboxConfig cfg, bool checked) {
+    ClayKit_Theme *theme = ctx->theme_ptr;
+
+    if (cfg.disabled) {
+        return theme->muted;
+    }
+
+    if (checked) {
+        return ClayKit_GetSchemeColor(theme, cfg.color_scheme);
+    }
+
+    return theme->border;
+}
+
+/* ----------------------------------------------------------------------------
+ * Switch Helper Functions
+ * ---------------------------------------------------------------------------- */
+
+uint16_t ClayKit_SwitchWidth(ClayKit_Context *ctx, ClayKit_Size size) {
+    (void)ctx;
+    switch (size) {
+        case CLAYKIT_SIZE_XS: return 28;
+        case CLAYKIT_SIZE_SM: return 34;
+        case CLAYKIT_SIZE_LG: return 50;
+        case CLAYKIT_SIZE_XL: return 58;
+        case CLAYKIT_SIZE_MD:
+        default: return 42;
+    }
+}
+
+uint16_t ClayKit_SwitchHeight(ClayKit_Context *ctx, ClayKit_Size size) {
+    (void)ctx;
+    switch (size) {
+        case CLAYKIT_SIZE_XS: return 16;
+        case CLAYKIT_SIZE_SM: return 20;
+        case CLAYKIT_SIZE_LG: return 28;
+        case CLAYKIT_SIZE_XL: return 32;
+        case CLAYKIT_SIZE_MD:
+        default: return 24;
+    }
+}
+
+uint16_t ClayKit_SwitchKnobSize(ClayKit_Context *ctx, ClayKit_Size size) {
+    (void)ctx;
+    switch (size) {
+        case CLAYKIT_SIZE_XS: return 12;
+        case CLAYKIT_SIZE_SM: return 16;
+        case CLAYKIT_SIZE_LG: return 24;
+        case CLAYKIT_SIZE_XL: return 28;
+        case CLAYKIT_SIZE_MD:
+        default: return 20;
+    }
+}
+
+Clay_Color ClayKit_SwitchBgColor(ClayKit_Context *ctx, ClayKit_SwitchConfig cfg, bool on, bool hovered) {
+    ClayKit_Theme *theme = ctx->theme_ptr;
+
+    if (cfg.disabled) {
+        return on ? theme->muted : theme->border;
+    }
+
+    Clay_Color scheme_color = ClayKit_GetSchemeColor(theme, cfg.color_scheme);
+
+    if (on) {
+        return hovered ? claykit_color_darken(scheme_color, 0.1f) : scheme_color;
+    }
+
+    return hovered ? claykit_color_darken(theme->border, 0.05f) : theme->border;
 }
 
 /* ----------------------------------------------------------------------------

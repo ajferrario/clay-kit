@@ -84,6 +84,10 @@ pub fn main() !void {
     var ctx: claykit.Context = .{};
     claykit.init(&ctx, &theme, &state_buf);
 
+    // Demo state for interactive components
+    var checkbox_checked: bool = false;
+    var switch_on: bool = true;
+
     // Main loop
     while (!raylib.windowShouldClose()) {
         // Update Clay layout dimensions if window resized
@@ -219,7 +223,31 @@ pub fn main() !void {
                     // Input demo
                     zclay.text("Input:", claykit.textStyle(&ctx, .{ .size = .sm, .color = theme.muted }));
                     _ = claykit.input(&ctx, "Input1", "Sample text", .{}, false);
-                    _ = claykit.input(&ctx, "Input2", "Focused input", .{}, true);
+
+                    // Checkbox and switch demo
+                    zclay.text("Toggle controls:", claykit.textStyle(&ctx, .{ .size = .sm, .color = theme.muted }));
+
+                    zclay.UI()(.{
+                        .id = zclay.ElementId.ID("ToggleRow"),
+                        .layout = .{
+                            .sizing = .{ .w = .grow },
+                            .child_gap = 16,
+                            .direction = .left_to_right,
+                            .child_alignment = .{ .y = .center },
+                        },
+                    })({
+                        // Checkbox
+                        if (claykit.checkbox(&ctx, "Checkbox1", checkbox_checked, .{}) and raylib.isMouseButtonPressed(.left)) {
+                            checkbox_checked = !checkbox_checked;
+                        }
+                        zclay.text(if (checkbox_checked) "Checked" else "Unchecked", claykit.textStyle(&ctx, .{ .size = .sm }));
+
+                        // Switch
+                        if (claykit.switch_(&ctx, "Switch1", switch_on, .{}) and raylib.isMouseButtonPressed(.left)) {
+                            switch_on = !switch_on;
+                        }
+                        zclay.text(if (switch_on) "On" else "Off", claykit.textStyle(&ctx, .{ .size = .sm }));
+                    });
                 });
 
                 // Center panel

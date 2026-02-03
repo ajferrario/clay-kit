@@ -402,6 +402,30 @@ pub const ButtonResult = extern struct {
 // Input Configuration
 // ============================================================================
 
+// ============================================================================
+// Checkbox Configuration
+// ============================================================================
+
+pub const CheckboxConfig = extern struct {
+    color_scheme: ColorScheme = .primary,
+    size: Size = .md,
+    disabled: bool = false,
+};
+
+// ============================================================================
+// Switch Configuration
+// ============================================================================
+
+pub const SwitchConfig = extern struct {
+    color_scheme: ColorScheme = .primary,
+    size: Size = .md,
+    disabled: bool = false,
+};
+
+// ============================================================================
+// Input Configuration
+// ============================================================================
+
 pub const InputConfig = extern struct {
     size: Size = .md,
     bg: Color = .{}, // Background color (default: theme bg)
@@ -457,6 +481,17 @@ extern fn ClayKit_InputPaddingX(ctx: *Context, size: Size) u16;
 extern fn ClayKit_InputPaddingY(ctx: *Context, size: Size) u16;
 extern fn ClayKit_InputFontSize(ctx: *Context, size: Size) u16;
 extern fn ClayKit_InputBorderColor(ctx: *Context, cfg: InputConfig, focused: bool) Color;
+
+// Checkbox helper functions
+extern fn ClayKit_CheckboxSize(ctx: *Context, size: Size) u16;
+extern fn ClayKit_CheckboxBgColor(ctx: *Context, cfg: CheckboxConfig, checked: bool, hovered: bool) Color;
+extern fn ClayKit_CheckboxBorderColor(ctx: *Context, cfg: CheckboxConfig, checked: bool) Color;
+
+// Switch helper functions
+extern fn ClayKit_SwitchWidth(ctx: *Context, size: Size) u16;
+extern fn ClayKit_SwitchHeight(ctx: *Context, size: Size) u16;
+extern fn ClayKit_SwitchKnobSize(ctx: *Context, size: Size) u16;
+extern fn ClayKit_SwitchBgColor(ctx: *Context, cfg: SwitchConfig, on: bool, hovered: bool) Color;
 
 // Theme presets (extern const)
 extern const CLAYKIT_THEME_LIGHT: Theme;
@@ -704,6 +739,108 @@ pub fn input(ctx: *Context, id: []const u8, text: []const u8, cfg: InputConfig, 
                 .color = .{ text_color.r, text_color.g, text_color.b, text_color.a },
             });
         }
+    });
+
+    return clicked;
+}
+
+/// Render a checkbox
+/// Returns whether the checkbox was clicked (to toggle state)
+pub fn checkbox(ctx: *Context, id: []const u8, checked: bool, cfg: CheckboxConfig) bool {
+    const size = ClayKit_CheckboxSize(ctx, cfg.size);
+    const theme = ctx.theme();
+    var clicked: bool = false;
+
+    zclay.UI()(.{
+        .id = zclay.ElementId.ID(id),
+        .layout = .{
+            .sizing = .{
+                .w = zclay.SizingAxis.fixed(@floatFromInt(size)),
+                .h = zclay.SizingAxis.fixed(@floatFromInt(size)),
+            },
+            .child_alignment = .{ .x = .center, .y = .center },
+        },
+        .background_color = blk: {
+            const hovered = zclay.hovered();
+            clicked = hovered;
+            const bg = ClayKit_CheckboxBgColor(ctx, cfg, checked, hovered);
+            break :blk .{ bg.r, bg.g, bg.b, bg.a };
+        },
+        .corner_radius = zclay.CornerRadius.all(@floatFromInt(theme.radius.sm)),
+        .border = blk: {
+            const bc = ClayKit_CheckboxBorderColor(ctx, cfg, checked);
+            break :blk .{
+                .color = .{ bc.r, bc.g, bc.b, bc.a },
+                .width = .{ .left = 2, .right = 2, .top = 2, .bottom = 2 },
+            };
+        },
+    })({
+        // Draw checkmark when checked
+        if (checked) {
+            // Simple inner square as checkmark indicator
+            const inner_size = size - 8;
+            zclay.UI()(.{
+                .layout = .{
+                    .sizing = .{
+                        .w = zclay.SizingAxis.fixed(@floatFromInt(inner_size)),
+                        .h = zclay.SizingAxis.fixed(@floatFromInt(inner_size)),
+                    },
+                },
+                .background_color = .{ 255, 255, 255, 255 },
+                .corner_radius = zclay.CornerRadius.all(2),
+            })({});
+        }
+    });
+
+    return clicked;
+}
+
+/// Render a switch (toggle)
+/// Returns whether the switch was clicked (to toggle state)
+pub fn switch_(ctx: *Context, id: []const u8, on: bool, cfg: SwitchConfig) bool {
+    const width = ClayKit_SwitchWidth(ctx, cfg.size);
+    const height = ClayKit_SwitchHeight(ctx, cfg.size);
+    const knob_size = ClayKit_SwitchKnobSize(ctx, cfg.size);
+    const padding: u16 = (height - knob_size) / 2;
+    var clicked: bool = false;
+
+    zclay.UI()(.{
+        .id = zclay.ElementId.ID(id),
+        .layout = .{
+            .sizing = .{
+                .w = zclay.SizingAxis.fixed(@floatFromInt(width)),
+                .h = zclay.SizingAxis.fixed(@floatFromInt(height)),
+            },
+            .padding = .{
+                .left = padding,
+                .right = padding,
+                .top = padding,
+                .bottom = padding,
+            },
+            .child_alignment = .{
+                .x = if (on) .right else .left,
+                .y = .center,
+            },
+        },
+        .background_color = blk: {
+            const hovered = zclay.hovered();
+            clicked = hovered;
+            const bg = ClayKit_SwitchBgColor(ctx, cfg, on, hovered);
+            break :blk .{ bg.r, bg.g, bg.b, bg.a };
+        },
+        .corner_radius = zclay.CornerRadius.all(@floatFromInt(height / 2)),
+    })({
+        // Knob
+        zclay.UI()(.{
+            .layout = .{
+                .sizing = .{
+                    .w = zclay.SizingAxis.fixed(@floatFromInt(knob_size)),
+                    .h = zclay.SizingAxis.fixed(@floatFromInt(knob_size)),
+                },
+            },
+            .background_color = .{ 255, 255, 255, 255 },
+            .corner_radius = zclay.CornerRadius.all(@floatFromInt(knob_size / 2)),
+        })({});
     });
 
     return clicked;
