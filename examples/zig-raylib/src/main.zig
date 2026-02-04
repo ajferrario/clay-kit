@@ -12,6 +12,34 @@ var raylib_fonts: [1]raylib.Font = undefined;
 // Buffer for null-terminating text strings
 var text_buffer: [4096]u8 = undefined;
 
+// Text input buffer
+var input_buffer: [256]u8 = undefined;
+var input_state: claykit.InputState = undefined;
+
+// ClayKit text measurement callback (different signature from zclay)
+fn measureTextForClayKit(
+    text: [*c]const u8,
+    length: u32,
+    font_id: u16,
+    font_size: u16,
+    _: ?*anyopaque,
+) callconv(.c) claykit.TextDimensions {
+    if (length == 0) return .{ .width = 0, .height = @floatFromInt(font_size) };
+
+    const font = raylib_fonts[font_id];
+    const font_size_f: f32 = @floatFromInt(font_size);
+
+    // Copy to buffer and null-terminate
+    const len: usize = @intCast(length);
+    const safe_len = @min(len, text_buffer.len - 1);
+    @memcpy(text_buffer[0..safe_len], text[0..safe_len]);
+    text_buffer[safe_len] = 0;
+    const text_z: [:0]const u8 = text_buffer[0..safe_len :0];
+
+    const size = raylib.measureTextEx(font, text_z, font_size_f, 0);
+    return .{ .width = size.x, .height = size.y };
+}
+
 // Clay text measurement callback
 fn measureText(text_slice: []const u8, config: *zclay.TextElementConfig, _: void) zclay.Dimensions {
     const font = raylib_fonts[config.font_id];
@@ -84,8 +112,46 @@ pub fn main() !void {
     var ctx: claykit.Context = .{};
     claykit.init(&ctx, &theme, &state_buf);
 
+    // Set up text measurement for ClayKit (needed for cursor positioning)
+    ctx.setMeasureText(measureTextForClayKit, null);
+
+    // Initialize text input state
+    input_state = claykit.InputState.init(&input_buffer);
+
     // Main loop
     while (!raylib.windowShouldClose()) {
+        // Update cursor blink timer
+        ctx.cursor_blink_time += raylib.getFrameTime();
+
+        // Handle keyboard input for text field
+        if (input_state.isFocused()) {
+            // Handle special keys
+            if (raylib.isKeyPressed(.backspace)) {
+                _ = claykit.inputHandleKey(&input_state, .backspace, getModifiers());
+            }
+            if (raylib.isKeyPressed(.delete)) {
+                _ = claykit.inputHandleKey(&input_state, .delete, getModifiers());
+            }
+            if (raylib.isKeyPressed(.left)) {
+                _ = claykit.inputHandleKey(&input_state, .left, getModifiers());
+            }
+            if (raylib.isKeyPressed(.right)) {
+                _ = claykit.inputHandleKey(&input_state, .right, getModifiers());
+            }
+            if (raylib.isKeyPressed(.home)) {
+                _ = claykit.inputHandleKey(&input_state, .home, getModifiers());
+            }
+            if (raylib.isKeyPressed(.end)) {
+                _ = claykit.inputHandleKey(&input_state, .end, getModifiers());
+            }
+
+            // Handle character input
+            var char = raylib.getCharPressed();
+            while (char != 0) {
+                _ = claykit.inputHandleChar(&input_state, @intCast(char));
+                char = raylib.getCharPressed();
+            }
+        }
         // Update Clay layout dimensions if window resized
         const screen_width: f32 = @floatFromInt(raylib.getScreenWidth());
         const screen_height: f32 = @floatFromInt(raylib.getScreenHeight());
@@ -166,6 +232,19 @@ pub fn main() !void {
                     // Slider
                     zclay.text("Slider", claykit.textStyle(&ctx, .{ .size = .sm }));
                     _ = claykit.slider(&ctx, "Slider1", 0.5, .{});
+
+                    // Text Input
+                    zclay.text("Text Input", claykit.textStyle(&ctx, .{ .size = .sm }));
+                    const input_clicked = claykit.textInput(&ctx, "TextInput1", &input_state, .{}, "Type here...");
+                    if (input_clicked and raylib.isMouseButtonPressed(.left)) {
+                        input_state.setFocused(true);
+                        // Reset blink timer on focus
+                        ctx.cursor_blink_time = 0;
+                    }
+                    // Unfocus when clicking elsewhere
+                    if (raylib.isMouseButtonPressed(.left) and !input_clicked) {
+                        input_state.setFocused(false);
+                    }
                 });
 
                 // Center panel
@@ -356,4 +435,18 @@ fn drawRoundedRect(bounds: zclay.BoundingBox, color: zclay.Color, radius: zclay.
         4,
         toRaylibColor(color),
     );
+}
+
+fn getModifiers() u32 {
+    var mods: u32 = 0;
+    if (raylib.isKeyDown(.left_shift) or raylib.isKeyDown(.right_shift)) {
+        mods |= @intFromEnum(claykit.Modifier.shift);
+    }
+    if (raylib.isKeyDown(.left_control) or raylib.isKeyDown(.right_control)) {
+        mods |= @intFromEnum(claykit.Modifier.ctrl);
+    }
+    if (raylib.isKeyDown(.left_alt) or raylib.isKeyDown(.right_alt)) {
+        mods |= @intFromEnum(claykit.Modifier.alt);
+    }
+    return mods;
 }

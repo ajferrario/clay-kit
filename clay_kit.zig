@@ -147,6 +147,23 @@ pub const Icon = extern struct {
 pub const IconCallback = ?*const fn (icon_id: u16, box: BoundingBox, user_data: ?*anyopaque) callconv(.c) void;
 
 // ============================================================================
+// Text Measurement
+// ============================================================================
+
+pub const TextDimensions = extern struct {
+    width: f32 = 0,
+    height: f32 = 0,
+};
+
+pub const MeasureTextCallback = ?*const fn (
+    text: [*c]const u8,
+    length: u32,
+    font_id: u16,
+    font_size: u16,
+    user_data: ?*anyopaque,
+) callconv(.c) TextDimensions;
+
+// ============================================================================
 // ClayKit Component State
 // ============================================================================
 
@@ -236,9 +253,26 @@ pub const Context = extern struct {
     prev_focused_id: u32 = 0,
     icon_callback: IconCallback = null,
     icon_user_data: ?*anyopaque = null,
+    measure_text: MeasureTextCallback = null,
+    measure_text_user_data: ?*anyopaque = null,
+    cursor_blink_time: f32 = 0,
 
     pub fn theme(self: *Context) *Theme {
         return self.theme_ptr.?;
+    }
+
+    pub fn setMeasureText(self: *Context, callback: MeasureTextCallback, user_data: ?*anyopaque) void {
+        self.measure_text = callback;
+        self.measure_text_user_data = user_data;
+    }
+
+    /// Measure text width using the configured callback
+    pub fn measureTextWidth(self: *Context, text: []const u8, font_id: u16, font_size: u16) f32 {
+        if (self.measure_text) |callback| {
+            const dims = callback(text.ptr, @intCast(text.len), font_id, font_size, self.measure_text_user_data);
+            return dims.width;
+        }
+        return 0;
     }
 };
 
@@ -299,6 +333,51 @@ pub const InputState = extern struct {
     cursor: u32 = 0,
     select_start: u32 = 0, // == cursor when no selection
     flags: u8 = 0,
+
+    /// Initialize input state with a buffer
+    pub fn init(buf: []u8) InputState {
+        return .{
+            .buf = buf.ptr,
+            .cap = @intCast(buf.len),
+            .len = 0,
+            .cursor = 0,
+            .select_start = 0,
+            .flags = 0,
+        };
+    }
+
+    /// Get current text as a slice
+    pub fn text(self: *const InputState) []const u8 {
+        if (self.buf == null or self.len == 0) return "";
+        return self.buf[0..self.len];
+    }
+
+    /// Check if there is a selection
+    pub fn hasSelection(self: *const InputState) bool {
+        return self.cursor != self.select_start;
+    }
+
+    /// Get selection range (start, end)
+    pub fn selectionRange(self: *const InputState) struct { start: u32, end: u32 } {
+        return if (self.cursor < self.select_start)
+            .{ .start = self.cursor, .end = self.select_start }
+        else
+            .{ .start = self.select_start, .end = self.cursor };
+    }
+
+    /// Check if focused
+    pub fn isFocused(self: *const InputState) bool {
+        return (self.flags & @intFromEnum(InputFlags.focused)) != 0;
+    }
+
+    /// Set focused state
+    pub fn setFocused(self: *InputState, focused: bool) void {
+        if (focused) {
+            self.flags |= @intFromEnum(InputFlags.focused);
+        } else {
+            self.flags &= ~@intFromEnum(InputFlags.focused);
+        }
+    }
 };
 
 // ============================================================================
@@ -539,7 +618,25 @@ pub const InputConfig = extern struct {
     focus_color: Color = .{}, // Border when focused (default: theme primary)
     text_color: Color = .{}, // Text color (default: theme fg)
     placeholder_color: Color = .{}, // Placeholder color (default: theme muted)
+    cursor_color: Color = .{}, // Cursor color (default: theme fg)
+    selection_color: Color = .{}, // Selection bg (default: primary with alpha)
     width: u16 = 0, // Fixed width (0 = grow)
+};
+
+/// Input computed style
+pub const InputStyle = extern struct {
+    bg_color: Color,
+    border_color: Color,
+    text_color: Color,
+    placeholder_color: Color,
+    cursor_color: Color,
+    selection_color: Color,
+    padding_x: u16,
+    padding_y: u16,
+    font_size: u16,
+    font_id: u16,
+    corner_radius: u16,
+    cursor_width: u16,
 };
 
 // ============================================================================
@@ -588,6 +685,8 @@ extern fn ClayKit_InputPaddingX(ctx: *Context, size: Size) u16;
 extern fn ClayKit_InputPaddingY(ctx: *Context, size: Size) u16;
 extern fn ClayKit_InputFontSize(ctx: *Context, size: Size) u16;
 extern fn ClayKit_InputBorderColor(ctx: *Context, cfg: InputConfig, focused: bool) Color;
+extern fn ClayKit_ComputeInputStyle(ctx: *Context, cfg: InputConfig, focused: bool) InputStyle;
+extern fn ClayKit_MeasureTextWidth(ctx: *Context, text: [*c]const u8, length: u32, font_id: u16, font_size: u16) f32;
 
 // Checkbox helper functions
 extern fn ClayKit_CheckboxSize(ctx: *Context, size: Size) u16;
@@ -672,7 +771,7 @@ pub fn beginFrame(ctx: *Context) void {
 
 /// Handle keyboard input for text input
 pub fn inputHandleKey(s: *InputState, key: Key, mods: u32) bool {
-    return ClayKit_InputHandleKey(s, @intFromEnum(key), mods);
+    return ClayKit_InputHandleKey(s, @intCast(@intFromEnum(key)), mods);
 }
 
 /// Handle character input for text input
@@ -882,6 +981,146 @@ pub fn input(ctx: *Context, id: []const u8, text: []const u8, cfg: InputConfig, 
                 .color = .{ text_color.r, text_color.g, text_color.b, text_color.a },
             });
         }
+    });
+
+    return clicked;
+}
+
+/// Compute input style (for custom rendering)
+pub fn computeInputStyle(ctx: *Context, cfg: InputConfig, focused: bool) InputStyle {
+    return ClayKit_ComputeInputStyle(ctx, cfg, focused);
+}
+
+/// Render a full text input with cursor and selection
+/// Returns whether the input was clicked (useful for setting focus)
+pub fn textInput(ctx: *Context, id: []const u8, state: *InputState, cfg: InputConfig, placeholder: []const u8) bool {
+    const focused = state.isFocused();
+    const style = ClayKit_ComputeInputStyle(ctx, cfg, focused);
+
+    // Determine if cursor should be visible (blink every 0.5s)
+    const show_cursor = focused and (@mod(ctx.cursor_blink_time, 1.0) < 0.5);
+
+    // Get text to display
+    const display_text = state.text();
+    const has_text = display_text.len > 0;
+
+    var clicked: bool = false;
+
+    // Outer container
+    zclay.UI()(.{
+        .id = zclay.ElementId.ID(id),
+        .layout = .{
+            .sizing = .{
+                .w = if (cfg.width > 0) zclay.SizingAxis.fixed(@floatFromInt(cfg.width)) else .grow,
+                .h = .fit,
+            },
+            .padding = .{
+                .left = style.padding_x,
+                .right = style.padding_x,
+                .top = style.padding_y,
+                .bottom = style.padding_y,
+            },
+        },
+        .background_color = .{ style.bg_color.r, style.bg_color.g, style.bg_color.b, style.bg_color.a },
+        .corner_radius = zclay.CornerRadius.all(@floatFromInt(style.corner_radius)),
+        .border = .{
+            .color = .{ style.border_color.r, style.border_color.g, style.border_color.b, style.border_color.a },
+            .width = .{ .left = 1, .right = 1, .top = 1, .bottom = 1 },
+        },
+    })({
+        clicked = zclay.hovered();
+
+        // Inner content wrapper for text + cursor positioning
+        zclay.UI()(.{
+            .layout = .{
+                .sizing = .{ .w = .grow, .h = .fit },
+            },
+        })({
+            // Selection highlight (rendered behind text)
+            if (focused and state.hasSelection()) {
+                const range = state.selectionRange();
+                const text_before_sel = if (range.start > 0) display_text[0..range.start] else "";
+                const sel_text = display_text[range.start..range.end];
+
+                const sel_start_x = ctx.measureTextWidth(text_before_sel, style.font_id, style.font_size);
+                const sel_width = ctx.measureTextWidth(sel_text, style.font_id, style.font_size);
+
+                if (sel_width > 0) {
+                    // Selection background
+                    zclay.UI()(.{
+                        .floating = .{
+                            .offset = .{ .x = sel_start_x, .y = 0 },
+                            .attach_points = .{ .element = .left_top, .parent = .left_top },
+                        },
+                        .layout = .{
+                            .sizing = .{
+                                .w = zclay.SizingAxis.fixed(sel_width),
+                                .h = zclay.SizingAxis.fixed(@floatFromInt(style.font_size)),
+                            },
+                        },
+                        .background_color = .{
+                            style.selection_color.r,
+                            style.selection_color.g,
+                            style.selection_color.b,
+                            style.selection_color.a,
+                        },
+                    })({});
+                }
+            }
+
+            // Text or placeholder
+            if (has_text) {
+                zclay.text(display_text, .{
+                    .font_size = style.font_size,
+                    .font_id = style.font_id,
+                    .color = .{
+                        style.text_color.r,
+                        style.text_color.g,
+                        style.text_color.b,
+                        style.text_color.a,
+                    },
+                });
+            } else if (placeholder.len > 0) {
+                zclay.text(placeholder, .{
+                    .font_size = style.font_size,
+                    .font_id = style.font_id,
+                    .color = .{
+                        style.placeholder_color.r,
+                        style.placeholder_color.g,
+                        style.placeholder_color.b,
+                        style.placeholder_color.a,
+                    },
+                });
+            }
+
+            // Cursor (rendered as floating element)
+            if (show_cursor) {
+                const text_before_cursor = if (state.cursor > 0 and has_text)
+                    display_text[0..@min(state.cursor, display_text.len)]
+                else
+                    "";
+                const cursor_x = ctx.measureTextWidth(text_before_cursor, style.font_id, style.font_size);
+
+                zclay.UI()(.{
+                    .floating = .{
+                        .offset = .{ .x = cursor_x, .y = 0 },
+                        .attach_points = .{ .element = .left_top, .parent = .left_top },
+                    },
+                    .layout = .{
+                        .sizing = .{
+                            .w = zclay.SizingAxis.fixed(@floatFromInt(style.cursor_width)),
+                            .h = zclay.SizingAxis.fixed(@floatFromInt(style.font_size)),
+                        },
+                    },
+                    .background_color = .{
+                        style.cursor_color.r,
+                        style.cursor_color.g,
+                        style.cursor_color.b,
+                        style.cursor_color.a,
+                    },
+                })({});
+            }
+        });
     });
 
     return clicked;

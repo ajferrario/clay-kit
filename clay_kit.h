@@ -31,6 +31,23 @@ typedef struct ClayKit_Icon {
 typedef void (*ClayKit_IconCallback)(uint16_t icon_id, Clay_BoundingBox box, void *user_data);
 
 /* ============================================================================
+ * Text Measurement
+ * ============================================================================ */
+
+typedef struct ClayKit_TextDimensions {
+    float width;
+    float height;
+} ClayKit_TextDimensions;
+
+typedef ClayKit_TextDimensions (*ClayKit_MeasureTextCallback)(
+    const char *text,
+    uint32_t length,
+    uint16_t font_id,
+    uint16_t font_size,
+    void *user_data
+);
+
+/* ============================================================================
  * Component State
  * ============================================================================ */
 
@@ -109,6 +126,9 @@ struct ClayKit_Context {
     uint32_t prev_focused_id;
     ClayKit_IconCallback icon_callback;
     void *icon_user_data;
+    ClayKit_MeasureTextCallback measure_text;
+    void *measure_text_user_data;
+    float cursor_blink_time;  /* Accumulator for cursor blinking */
 };
 
 /* ============================================================================
@@ -680,8 +700,26 @@ typedef struct ClayKit_InputConfig {
     Clay_Color focus_color;      /* Border color when focused (default: theme primary) */
     Clay_Color text_color;       /* Text color (default: theme fg) */
     Clay_Color placeholder_color; /* Placeholder text color (default: theme muted) */
+    Clay_Color cursor_color;     /* Cursor color (default: theme fg) */
+    Clay_Color selection_color;  /* Selection background (default: primary with alpha) */
     uint16_t width;              /* Fixed width (0 = grow to fill) */
 } ClayKit_InputConfig;
+
+/* Input computed style */
+typedef struct ClayKit_InputStyle {
+    Clay_Color bg_color;         /* Background color */
+    Clay_Color border_color;     /* Border color */
+    Clay_Color text_color;       /* Text color */
+    Clay_Color placeholder_color; /* Placeholder text color */
+    Clay_Color cursor_color;     /* Cursor color */
+    Clay_Color selection_color;  /* Selection background color */
+    uint16_t padding_x;          /* Horizontal padding */
+    uint16_t padding_y;          /* Vertical padding */
+    uint16_t font_size;          /* Font size */
+    uint16_t font_id;            /* Font ID */
+    uint16_t corner_radius;      /* Corner radius */
+    uint16_t cursor_width;       /* Cursor width in pixels */
+} ClayKit_InputStyle;
 
 /* Button helper functions for computing styles */
 Clay_Color ClayKit_ButtonBgColor(ClayKit_Context *ctx, ClayKit_ButtonConfig cfg, bool hovered);
@@ -698,6 +736,8 @@ uint16_t ClayKit_InputPaddingX(ClayKit_Context *ctx, ClayKit_Size size);
 uint16_t ClayKit_InputPaddingY(ClayKit_Context *ctx, ClayKit_Size size);
 uint16_t ClayKit_InputFontSize(ClayKit_Context *ctx, ClayKit_Size size);
 Clay_Color ClayKit_InputBorderColor(ClayKit_Context *ctx, ClayKit_InputConfig cfg, bool focused);
+ClayKit_InputStyle ClayKit_ComputeInputStyle(ClayKit_Context *ctx, ClayKit_InputConfig cfg, bool focused);
+float ClayKit_MeasureTextWidth(ClayKit_Context *ctx, const char *text, uint32_t length, uint16_t font_id, uint16_t font_size);
 
 /* Checkbox helper functions */
 uint16_t ClayKit_CheckboxSize(ClayKit_Context *ctx, ClayKit_Size size);
@@ -1263,6 +1303,50 @@ Clay_Color ClayKit_InputBorderColor(ClayKit_Context *ctx, ClayKit_InputConfig cf
         return (cfg.focus_color.a != 0) ? cfg.focus_color : theme->primary;
     }
     return (cfg.border_color.a != 0) ? cfg.border_color : theme->border;
+}
+
+ClayKit_InputStyle ClayKit_ComputeInputStyle(ClayKit_Context *ctx, ClayKit_InputConfig cfg, bool focused) {
+    ClayKit_Theme *theme = ctx->theme_ptr;
+    ClayKit_InputStyle style;
+
+    /* Background */
+    style.bg_color = (cfg.bg.a != 0) ? cfg.bg : theme->bg;
+
+    /* Border */
+    style.border_color = ClayKit_InputBorderColor(ctx, cfg, focused);
+
+    /* Text colors */
+    style.text_color = (cfg.text_color.a != 0) ? cfg.text_color : theme->fg;
+    style.placeholder_color = (cfg.placeholder_color.a != 0) ? cfg.placeholder_color : theme->muted;
+
+    /* Cursor - defaults to text color */
+    style.cursor_color = (cfg.cursor_color.a != 0) ? cfg.cursor_color : style.text_color;
+
+    /* Selection - defaults to primary with transparency */
+    if (cfg.selection_color.a != 0) {
+        style.selection_color = cfg.selection_color;
+    } else {
+        style.selection_color = theme->primary;
+        style.selection_color.a = 77; /* ~30% opacity */
+    }
+
+    /* Sizing */
+    style.padding_x = ClayKit_InputPaddingX(ctx, cfg.size);
+    style.padding_y = ClayKit_InputPaddingY(ctx, cfg.size);
+    style.font_size = ClayKit_InputFontSize(ctx, cfg.size);
+    style.font_id = theme->font_id.body;
+    style.corner_radius = theme->radius.sm;
+    style.cursor_width = 2;
+
+    return style;
+}
+
+float ClayKit_MeasureTextWidth(ClayKit_Context *ctx, const char *text, uint32_t length, uint16_t font_id, uint16_t font_size) {
+    if (ctx->measure_text == NULL || length == 0) {
+        return 0.0f;
+    }
+    ClayKit_TextDimensions dims = ctx->measure_text(text, length, font_id, font_size, ctx->measure_text_user_data);
+    return dims.width;
 }
 
 /* ----------------------------------------------------------------------------
