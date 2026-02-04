@@ -738,6 +738,7 @@ uint16_t ClayKit_InputFontSize(ClayKit_Context *ctx, ClayKit_Size size);
 Clay_Color ClayKit_InputBorderColor(ClayKit_Context *ctx, ClayKit_InputConfig cfg, bool focused);
 ClayKit_InputStyle ClayKit_ComputeInputStyle(ClayKit_Context *ctx, ClayKit_InputConfig cfg, bool focused);
 float ClayKit_MeasureTextWidth(ClayKit_Context *ctx, const char *text, uint32_t length, uint16_t font_id, uint16_t font_size);
+uint32_t ClayKit_InputGetCursorFromX(ClayKit_Context *ctx, const char *text, uint32_t length, uint16_t font_id, uint16_t font_size, float x_offset);
 
 /* Checkbox helper functions */
 uint16_t ClayKit_CheckboxSize(ClayKit_Context *ctx, ClayKit_Size size);
@@ -1347,6 +1348,25 @@ float ClayKit_MeasureTextWidth(ClayKit_Context *ctx, const char *text, uint32_t 
     }
     ClayKit_TextDimensions dims = ctx->measure_text(text, length, font_id, font_size, ctx->measure_text_user_data);
     return dims.width;
+}
+
+uint32_t ClayKit_InputGetCursorFromX(ClayKit_Context *ctx, const char *text, uint32_t length, uint16_t font_id, uint16_t font_size, float x_offset) {
+    if (ctx->measure_text == NULL || length == 0 || x_offset <= 0) {
+        return 0;
+    }
+
+    /* Binary search would be more efficient, but linear is simpler and text inputs are usually short */
+    float prev_width = 0.0f;
+    for (uint32_t i = 1; i <= length; i++) {
+        float width = ClayKit_MeasureTextWidth(ctx, text, i, font_id, font_size);
+        /* Check if click is closer to this position or the previous one */
+        float mid = (prev_width + width) / 2.0f;
+        if (x_offset < mid) {
+            return i - 1;
+        }
+        prev_width = width;
+    }
+    return length;
 }
 
 /* ----------------------------------------------------------------------------

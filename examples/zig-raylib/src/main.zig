@@ -164,6 +164,9 @@ pub fn main() !void {
         // Begin frame
         claykit.beginFrame(&ctx);
 
+        // Track input click state (set during UI building, used after layout)
+        var input_clicked: bool = false;
+
         // Build UI layout using new zclay API
         zclay.beginLayout();
 
@@ -235,16 +238,7 @@ pub fn main() !void {
 
                     // Text Input
                     zclay.text("Text Input", claykit.textStyle(&ctx, .{ .size = .sm }));
-                    const input_clicked = claykit.textInput(&ctx, "TextInput1", &input_state, .{}, "Type here...");
-                    if (input_clicked and raylib.isMouseButtonPressed(.left)) {
-                        input_state.setFocused(true);
-                        // Reset blink timer on focus
-                        ctx.cursor_blink_time = 0;
-                    }
-                    // Unfocus when clicking elsewhere
-                    if (raylib.isMouseButtonPressed(.left) and !input_clicked) {
-                        input_state.setFocused(false);
-                    }
+                    input_clicked = claykit.textInput(&ctx, "TextInput1", &input_state, .{}, "Type here...");
                 });
 
                 // Center panel
@@ -336,6 +330,25 @@ pub fn main() !void {
 
         // End layout and get render commands
         const render_commands = zclay.endLayout();
+
+        // Handle text input click-to-position (after layout so we have bounding boxes)
+        if (raylib.isMouseButtonPressed(.left)) {
+            if (input_clicked) {
+                // Focus and position cursor at click location
+                input_state.setFocused(true);
+                ctx.cursor_blink_time = 0;
+
+                // Get input element's bounding box
+                const input_elem = zclay.getElementData(zclay.ElementId.ID("TextInput1"));
+                if (input_elem.found) {
+                    const style = claykit.computeInputStyle(&ctx, .{}, true);
+                    claykit.inputHandleClick(&ctx, &input_state, input_elem.bounding_box, mouse_pos.x, style);
+                }
+            } else {
+                // Clicked elsewhere - unfocus
+                input_state.setFocused(false);
+            }
+        }
 
         // Render with raylib
         raylib.beginDrawing();

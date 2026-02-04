@@ -687,6 +687,7 @@ extern fn ClayKit_InputFontSize(ctx: *Context, size: Size) u16;
 extern fn ClayKit_InputBorderColor(ctx: *Context, cfg: InputConfig, focused: bool) Color;
 extern fn ClayKit_ComputeInputStyle(ctx: *Context, cfg: InputConfig, focused: bool) InputStyle;
 extern fn ClayKit_MeasureTextWidth(ctx: *Context, text: [*c]const u8, length: u32, font_id: u16, font_size: u16) f32;
+extern fn ClayKit_InputGetCursorFromX(ctx: *Context, text: [*c]const u8, length: u32, font_id: u16, font_size: u16, x_offset: f32) u32;
 
 // Checkbox helper functions
 extern fn ClayKit_CheckboxSize(ctx: *Context, size: Size) u16;
@@ -777,6 +778,31 @@ pub fn inputHandleKey(s: *InputState, key: Key, mods: u32) bool {
 /// Handle character input for text input
 pub fn inputHandleChar(s: *InputState, codepoint: u32) bool {
     return ClayKit_InputHandleChar(s, codepoint);
+}
+
+/// Get cursor position from x offset within text
+/// x_offset is the click position relative to the start of the text
+pub fn inputGetCursorFromX(ctx: *Context, text: []const u8, font_id: u16, font_size: u16, x_offset: f32) u32 {
+    return ClayKit_InputGetCursorFromX(ctx, text.ptr, @intCast(text.len), font_id, font_size, x_offset);
+}
+
+/// Handle click on text input - sets cursor position based on click x coordinate
+/// bounds: the bounding box of the input element
+/// click_x: the x coordinate of the click (screen space)
+/// state: the input state to update
+/// style: the computed input style (for padding and font info)
+pub fn inputHandleClick(ctx: *Context, state: *InputState, bounds: zclay.BoundingBox, click_x: f32, style: InputStyle) void {
+    // Calculate x offset relative to text start (after padding)
+    const text_start_x = bounds.x + @as(f32, @floatFromInt(style.padding_x));
+    const x_offset = click_x - text_start_x;
+
+    // Get cursor position from x offset
+    const text = state.text();
+    const new_cursor = inputGetCursorFromX(ctx, text, style.font_id, style.font_size, x_offset);
+
+    // Update cursor and clear selection
+    state.cursor = new_cursor;
+    state.select_start = new_cursor;
 }
 
 /// Get color from color scheme
