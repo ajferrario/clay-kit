@@ -1056,95 +1056,96 @@ pub fn textInput(ctx: *Context, id: []const u8, state: *InputState, cfg: InputCo
     })({
         clicked = zclay.hovered();
 
-        // Inner content wrapper for text + cursor positioning
+        // Inner content - horizontal layout with text parts and cursor
         zclay.UI()(.{
             .layout = .{
                 .sizing = .{ .w = .grow, .h = .fit },
+                .direction = .left_to_right,
+                .child_alignment = .{ .y = .center },
             },
         })({
-            // Selection highlight (rendered behind text)
-            if (focused and state.hasSelection()) {
-                const range = state.selectionRange();
-                const text_before_sel = if (range.start > 0) display_text[0..range.start] else "";
-                const sel_text = display_text[range.start..range.end];
+            const cursor_pos = @min(state.cursor, display_text.len);
 
-                const sel_start_x = ctx.measureTextWidth(text_before_sel, style.font_id, style.font_size);
-                const sel_width = ctx.measureTextWidth(sel_text, style.font_id, style.font_size);
+            // Cursor color - visible when blinking on, transparent when off
+            const cursor_alpha: f32 = if (show_cursor) style.cursor_color.a else 0;
 
-                if (sel_width > 0) {
-                    // Selection background
-                    zclay.UI()(.{
-                        .floating = .{
-                            .offset = .{ .x = sel_start_x, .y = 0 },
-                            .attach_points = .{ .element = .left_top, .parent = .left_top },
+            if (has_text) {
+                // Text before cursor
+                if (cursor_pos > 0) {
+                    const text_before = display_text[0..cursor_pos];
+                    zclay.text(text_before, .{
+                        .font_size = style.font_size,
+                        .font_id = style.font_id,
+                        .color = .{
+                            style.text_color.r,
+                            style.text_color.g,
+                            style.text_color.b,
+                            style.text_color.a,
                         },
+                    });
+                }
+
+                // Cursor (always rendered to reserve space, alpha controls visibility)
+                if (focused) {
+                    zclay.UI()(.{
                         .layout = .{
                             .sizing = .{
-                                .w = zclay.SizingAxis.fixed(sel_width),
+                                .w = zclay.SizingAxis.fixed(@floatFromInt(style.cursor_width)),
                                 .h = zclay.SizingAxis.fixed(@floatFromInt(style.font_size)),
                             },
                         },
                         .background_color = .{
-                            style.selection_color.r,
-                            style.selection_color.g,
-                            style.selection_color.b,
-                            style.selection_color.a,
+                            style.cursor_color.r,
+                            style.cursor_color.g,
+                            style.cursor_color.b,
+                            cursor_alpha,
                         },
                     })({});
                 }
-            }
 
-            // Text or placeholder
-            if (has_text) {
-                zclay.text(display_text, .{
-                    .font_size = style.font_size,
-                    .font_id = style.font_id,
-                    .color = .{
-                        style.text_color.r,
-                        style.text_color.g,
-                        style.text_color.b,
-                        style.text_color.a,
-                    },
-                });
-            } else if (placeholder.len > 0) {
-                zclay.text(placeholder, .{
-                    .font_size = style.font_size,
-                    .font_id = style.font_id,
-                    .color = .{
-                        style.placeholder_color.r,
-                        style.placeholder_color.g,
-                        style.placeholder_color.b,
-                        style.placeholder_color.a,
-                    },
-                });
-            }
-
-            // Cursor (rendered as floating element)
-            if (show_cursor) {
-                const text_before_cursor = if (state.cursor > 0 and has_text)
-                    display_text[0..@min(state.cursor, display_text.len)]
-                else
-                    "";
-                const cursor_x = ctx.measureTextWidth(text_before_cursor, style.font_id, style.font_size);
-
-                zclay.UI()(.{
-                    .floating = .{
-                        .offset = .{ .x = cursor_x, .y = 0 },
-                        .attach_points = .{ .element = .left_top, .parent = .left_top },
-                    },
-                    .layout = .{
-                        .sizing = .{
-                            .w = zclay.SizingAxis.fixed(@floatFromInt(style.cursor_width)),
-                            .h = zclay.SizingAxis.fixed(@floatFromInt(style.font_size)),
+                // Text after cursor
+                if (cursor_pos < display_text.len) {
+                    const text_after = display_text[cursor_pos..];
+                    zclay.text(text_after, .{
+                        .font_size = style.font_size,
+                        .font_id = style.font_id,
+                        .color = .{
+                            style.text_color.r,
+                            style.text_color.g,
+                            style.text_color.b,
+                            style.text_color.a,
                         },
-                    },
-                    .background_color = .{
-                        style.cursor_color.r,
-                        style.cursor_color.g,
-                        style.cursor_color.b,
-                        style.cursor_color.a,
-                    },
-                })({});
+                    });
+                }
+            } else {
+                // No text - show cursor (if focused) or placeholder
+                if (focused) {
+                    zclay.UI()(.{
+                        .layout = .{
+                            .sizing = .{
+                                .w = zclay.SizingAxis.fixed(@floatFromInt(style.cursor_width)),
+                                .h = zclay.SizingAxis.fixed(@floatFromInt(style.font_size)),
+                            },
+                        },
+                        .background_color = .{
+                            style.cursor_color.r,
+                            style.cursor_color.g,
+                            style.cursor_color.b,
+                            cursor_alpha,
+                        },
+                    })({});
+                } else if (placeholder.len > 0) {
+                    zclay.text(placeholder, .{
+                        .font_size = style.font_size,
+                        .font_id = style.font_id,
+                        .color = .{
+                            style.placeholder_color.r,
+                            style.placeholder_color.g,
+                            style.placeholder_color.b,
+                            style.placeholder_color.a,
+                        },
+                    });
+                }
             }
         });
     });
