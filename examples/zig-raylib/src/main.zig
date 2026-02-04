@@ -16,6 +16,10 @@ var text_buffer: [4096]u8 = undefined;
 var input_buffer: [256]u8 = undefined;
 var input_state: claykit.InputState = undefined;
 
+// Pending click state (processed before next frame's layout)
+var pending_input_click: bool = false;
+var pending_click_x: f32 = 0;
+
 // ClayKit text measurement callback (different signature from zclay)
 fn measureTextForClayKit(
     text: [*c]const u8,
@@ -163,6 +167,16 @@ pub fn main() !void {
 
         // Begin frame
         claykit.beginFrame(&ctx);
+
+        // Process pending click from last frame (before layout so cursor renders correctly)
+        if (pending_input_click) {
+            pending_input_click = false;
+            const input_elem = zclay.getElementData(zclay.ElementId.ID("TextInput1"));
+            if (input_elem.found) {
+                const style = claykit.computeInputStyle(&ctx, .{}, true);
+                claykit.inputHandleClick(&ctx, &input_state, input_elem.bounding_box, pending_click_x, style);
+            }
+        }
 
         // Track input click state (set during UI building, used after layout)
         var input_clicked: bool = false;
@@ -331,19 +345,14 @@ pub fn main() !void {
         // End layout and get render commands
         const render_commands = zclay.endLayout();
 
-        // Handle text input click-to-position (after layout so we have bounding boxes)
+        // Handle text input click (store for processing before next frame's layout)
         if (raylib.isMouseButtonPressed(.left)) {
             if (input_clicked) {
-                // Focus and position cursor at click location
+                // Focus immediately, store click for cursor positioning next frame
                 input_state.setFocused(true);
                 ctx.cursor_blink_time = 0;
-
-                // Get input element's bounding box
-                const input_elem = zclay.getElementData(zclay.ElementId.ID("TextInput1"));
-                if (input_elem.found) {
-                    const style = claykit.computeInputStyle(&ctx, .{}, true);
-                    claykit.inputHandleClick(&ctx, &input_state, input_elem.bounding_box, mouse_pos.x, style);
-                }
+                pending_input_click = true;
+                pending_click_x = mouse_pos.x;
             } else {
                 // Clicked elsewhere - unfocus
                 input_state.setFocused(false);
