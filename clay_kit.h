@@ -586,6 +586,14 @@ typedef struct ClayKit_ProgressConfig {
     bool striped;                      /* Show striped pattern (visual only) */
 } ClayKit_ProgressConfig;
 
+/* Progress computed style */
+typedef struct ClayKit_ProgressStyle {
+    Clay_Color track_color;      /* Background track color */
+    Clay_Color fill_color;       /* Filled portion color */
+    uint16_t height;             /* Track height in pixels */
+    uint16_t corner_radius;      /* Corner radius */
+} ClayKit_ProgressStyle;
+
 /* ============================================================================
  * Slider Configuration
  * ============================================================================ */
@@ -597,6 +605,69 @@ typedef struct ClayKit_SliderConfig {
     float max;                         /* Maximum value */
     bool disabled;                     /* Disabled state */
 } ClayKit_SliderConfig;
+
+/* Slider computed style */
+typedef struct ClayKit_SliderStyle {
+    Clay_Color track_color;      /* Background track color */
+    Clay_Color fill_color;       /* Filled portion color */
+    Clay_Color thumb_color;      /* Thumb color */
+    uint16_t track_height;       /* Track height in pixels */
+    uint16_t thumb_size;         /* Thumb diameter in pixels */
+    uint16_t corner_radius;      /* Track corner radius */
+} ClayKit_SliderStyle;
+
+/* ============================================================================
+ * Alert Configuration
+ * ============================================================================ */
+
+typedef enum ClayKit_AlertVariant {
+    CLAYKIT_ALERT_SUBTLE = 0,    /* Light background, colored border */
+    CLAYKIT_ALERT_SOLID = 1,     /* Solid colored background */
+    CLAYKIT_ALERT_OUTLINE = 2    /* Transparent with colored border */
+} ClayKit_AlertVariant;
+
+typedef struct ClayKit_AlertConfig {
+    ClayKit_ColorScheme color_scheme;  /* Alert color (info=primary, success, warning, error) */
+    ClayKit_AlertVariant variant;      /* Visual style variant */
+    ClayKit_Icon icon;                 /* Optional icon (0 = no icon) */
+} ClayKit_AlertConfig;
+
+/* Alert computed style */
+typedef struct ClayKit_AlertStyle {
+    Clay_Color bg_color;         /* Background color */
+    Clay_Color border_color;     /* Border color */
+    Clay_Color text_color;       /* Text color */
+    Clay_Color icon_color;       /* Icon color */
+    uint16_t border_width;       /* Border width */
+    uint16_t padding;            /* Inner padding */
+    uint16_t corner_radius;      /* Corner radius */
+    uint16_t icon_size;          /* Icon size if present */
+} ClayKit_AlertStyle;
+
+/* ============================================================================
+ * Tooltip Configuration
+ * ============================================================================ */
+
+typedef enum ClayKit_TooltipPosition {
+    CLAYKIT_TOOLTIP_TOP = 0,
+    CLAYKIT_TOOLTIP_BOTTOM = 1,
+    CLAYKIT_TOOLTIP_LEFT = 2,
+    CLAYKIT_TOOLTIP_RIGHT = 3
+} ClayKit_TooltipPosition;
+
+typedef struct ClayKit_TooltipConfig {
+    ClayKit_TooltipPosition position;  /* Where to show relative to anchor */
+} ClayKit_TooltipConfig;
+
+/* Tooltip computed style */
+typedef struct ClayKit_TooltipStyle {
+    Clay_Color bg_color;         /* Background color (dark) */
+    Clay_Color text_color;       /* Text color (light) */
+    uint16_t padding_x;          /* Horizontal padding */
+    uint16_t padding_y;          /* Vertical padding */
+    uint16_t corner_radius;      /* Corner radius */
+    uint16_t font_size;          /* Font size */
+} ClayKit_TooltipStyle;
 
 /* ============================================================================
  * Input Configuration
@@ -638,6 +709,18 @@ uint16_t ClayKit_SwitchWidth(ClayKit_Context *ctx, ClayKit_Size size);
 uint16_t ClayKit_SwitchHeight(ClayKit_Context *ctx, ClayKit_Size size);
 uint16_t ClayKit_SwitchKnobSize(ClayKit_Context *ctx, ClayKit_Size size);
 Clay_Color ClayKit_SwitchBgColor(ClayKit_Context *ctx, ClayKit_SwitchConfig cfg, bool on, bool hovered);
+
+/* Progress helper functions */
+ClayKit_ProgressStyle ClayKit_ComputeProgressStyle(ClayKit_Context *ctx, ClayKit_ProgressConfig cfg);
+
+/* Slider helper functions */
+ClayKit_SliderStyle ClayKit_ComputeSliderStyle(ClayKit_Context *ctx, ClayKit_SliderConfig cfg, bool hovered);
+
+/* Alert helper functions */
+ClayKit_AlertStyle ClayKit_ComputeAlertStyle(ClayKit_Context *ctx, ClayKit_AlertConfig cfg);
+
+/* Tooltip helper functions */
+ClayKit_TooltipStyle ClayKit_ComputeTooltipStyle(ClayKit_Context *ctx, ClayKit_TooltipConfig cfg);
 
 /* ============================================================================
  * Theme Presets (defined in implementation)
@@ -1368,6 +1451,149 @@ void ClayKit_BadgeRaw(ClayKit_Context *ctx, const char *text, int32_t text_len, 
 
 void ClayKit_Badge(ClayKit_Context *ctx, Clay_String text, ClayKit_BadgeConfig cfg) {
     ClayKit_BadgeRaw(ctx, text.chars, text.length, cfg);
+}
+
+/* ----------------------------------------------------------------------------
+ * Progress
+ * ---------------------------------------------------------------------------- */
+
+ClayKit_ProgressStyle ClayKit_ComputeProgressStyle(ClayKit_Context *ctx, ClayKit_ProgressConfig cfg) {
+    ClayKit_Theme *theme = ctx->theme_ptr;
+    ClayKit_ProgressStyle style;
+
+    /* Track is a lightened version of border color */
+    style.track_color = claykit_color_lighten(theme->border, 0.5f);
+    style.fill_color = ClayKit_GetSchemeColor(theme, cfg.color_scheme);
+
+    /* Height based on size */
+    switch (cfg.size) {
+        case CLAYKIT_SIZE_XS: style.height = 4; break;
+        case CLAYKIT_SIZE_SM: style.height = 6; break;
+        case CLAYKIT_SIZE_LG: style.height = 12; break;
+        case CLAYKIT_SIZE_XL: style.height = 16; break;
+        case CLAYKIT_SIZE_MD:
+        default: style.height = 8; break;
+    }
+
+    style.corner_radius = style.height / 2;
+
+    return style;
+}
+
+/* ----------------------------------------------------------------------------
+ * Slider
+ * ---------------------------------------------------------------------------- */
+
+ClayKit_SliderStyle ClayKit_ComputeSliderStyle(ClayKit_Context *ctx, ClayKit_SliderConfig cfg, bool hovered) {
+    ClayKit_Theme *theme = ctx->theme_ptr;
+    ClayKit_SliderStyle style;
+
+    Clay_Color scheme_color = ClayKit_GetSchemeColor(theme, cfg.color_scheme);
+
+    /* Track is a lightened version of border color */
+    style.track_color = claykit_color_lighten(theme->border, 0.5f);
+    style.fill_color = cfg.disabled ? theme->muted : scheme_color;
+
+    /* Thumb color with hover state */
+    if (cfg.disabled) {
+        style.thumb_color = theme->muted;
+    } else if (hovered) {
+        style.thumb_color = claykit_color_darken(scheme_color, 0.1f);
+    } else {
+        style.thumb_color = scheme_color;
+    }
+
+    /* Sizes based on size enum */
+    switch (cfg.size) {
+        case CLAYKIT_SIZE_XS:
+            style.track_height = 4;
+            style.thumb_size = 12;
+            break;
+        case CLAYKIT_SIZE_SM:
+            style.track_height = 6;
+            style.thumb_size = 16;
+            break;
+        case CLAYKIT_SIZE_LG:
+            style.track_height = 10;
+            style.thumb_size = 24;
+            break;
+        case CLAYKIT_SIZE_XL:
+            style.track_height = 12;
+            style.thumb_size = 28;
+            break;
+        case CLAYKIT_SIZE_MD:
+        default:
+            style.track_height = 8;
+            style.thumb_size = 20;
+            break;
+    }
+
+    style.corner_radius = style.track_height / 2;
+
+    return style;
+}
+
+/* ----------------------------------------------------------------------------
+ * Alert
+ * ---------------------------------------------------------------------------- */
+
+ClayKit_AlertStyle ClayKit_ComputeAlertStyle(ClayKit_Context *ctx, ClayKit_AlertConfig cfg) {
+    ClayKit_Theme *theme = ctx->theme_ptr;
+    ClayKit_AlertStyle style;
+
+    Clay_Color scheme_color = ClayKit_GetSchemeColor(theme, cfg.color_scheme);
+
+    switch (cfg.variant) {
+        case CLAYKIT_ALERT_SOLID:
+            style.bg_color = scheme_color;
+            style.border_color = scheme_color;
+            style.text_color = (Clay_Color){ 255, 255, 255, 255 };
+            style.icon_color = (Clay_Color){ 255, 255, 255, 255 };
+            style.border_width = 0;
+            break;
+        case CLAYKIT_ALERT_OUTLINE:
+            style.bg_color = (Clay_Color){ 0, 0, 0, 0 };
+            style.border_color = scheme_color;
+            style.text_color = scheme_color;
+            style.icon_color = scheme_color;
+            style.border_width = 1;
+            break;
+        case CLAYKIT_ALERT_SUBTLE:
+        default:
+            style.bg_color = claykit_color_lighten(scheme_color, 0.9f);
+            style.border_color = claykit_color_lighten(scheme_color, 0.5f);
+            style.text_color = claykit_color_darken(scheme_color, 0.3f);
+            style.icon_color = scheme_color;
+            style.border_width = 1;
+            break;
+    }
+
+    style.padding = theme->spacing.md;
+    style.corner_radius = theme->radius.md;
+    style.icon_size = (cfg.icon.size > 0) ? cfg.icon.size : 20;
+
+    return style;
+}
+
+/* ----------------------------------------------------------------------------
+ * Tooltip
+ * ---------------------------------------------------------------------------- */
+
+ClayKit_TooltipStyle ClayKit_ComputeTooltipStyle(ClayKit_Context *ctx, ClayKit_TooltipConfig cfg) {
+    ClayKit_Theme *theme = ctx->theme_ptr;
+    ClayKit_TooltipStyle style;
+    (void)cfg; /* Position doesn't affect style, only layout */
+
+    /* Dark background, light text */
+    style.bg_color = (Clay_Color){ 31, 41, 55, 240 }; /* Gray-800 with slight transparency */
+    style.text_color = (Clay_Color){ 249, 250, 251, 255 }; /* Gray-50 */
+
+    style.padding_x = theme->spacing.sm;
+    style.padding_y = theme->spacing.xs;
+    style.corner_radius = theme->radius.sm;
+    style.font_size = theme->font_size.sm;
+
+    return style;
 }
 
 #endif /* CLAYKIT_IMPLEMENTATION */

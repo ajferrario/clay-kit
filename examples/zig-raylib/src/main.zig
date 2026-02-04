@@ -151,11 +151,21 @@ pub fn main() !void {
                 })({
                     zclay.text("ClayKit Demo", claykit.headingStyle(&ctx, .{ .size = .lg }));
 
-                    // Single badge test
+                    // Badge
                     claykit.badge(&ctx, "Badge", .{});
 
-                    // Single button test
+                    // Button
                     _ = claykit.button(&ctx, "Btn1", "Button", .{});
+
+                    // Progress bars
+                    zclay.text("Progress", claykit.textStyle(&ctx, .{ .size = .sm }));
+                    claykit.progress(&ctx, "Progress1", 0.7, .{});
+                    claykit.progress(&ctx, "Progress2", 0.4, .{ .color_scheme = .success });
+                    claykit.progress(&ctx, "Progress3", 0.9, .{ .color_scheme = .warning, .size = .lg });
+
+                    // Slider
+                    zclay.text("Slider", claykit.textStyle(&ctx, .{ .size = .sm }));
+                    _ = claykit.slider(&ctx, "Slider1", 0.5, .{});
                 });
 
                 // Center panel

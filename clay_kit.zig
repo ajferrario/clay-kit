@@ -436,6 +436,99 @@ pub const SwitchConfig = extern struct {
 };
 
 // ============================================================================
+// Progress Configuration
+// ============================================================================
+
+pub const ProgressConfig = extern struct {
+    color_scheme: ColorScheme = .primary,
+    size: Size = .md,
+    striped: bool = false,
+};
+
+/// Progress computed style
+pub const ProgressStyle = extern struct {
+    track_color: Color,
+    fill_color: Color,
+    height: u16,
+    corner_radius: u16,
+};
+
+// ============================================================================
+// Slider Configuration
+// ============================================================================
+
+pub const SliderConfig = extern struct {
+    color_scheme: ColorScheme = .primary,
+    size: Size = .md,
+    min: f32 = 0,
+    max: f32 = 1,
+    disabled: bool = false,
+};
+
+/// Slider computed style
+pub const SliderStyle = extern struct {
+    track_color: Color,
+    fill_color: Color,
+    thumb_color: Color,
+    track_height: u16,
+    thumb_size: u16,
+    corner_radius: u16,
+};
+
+// ============================================================================
+// Alert Configuration
+// ============================================================================
+
+pub const AlertVariant = enum(c_int) {
+    subtle = 0, // Light background, colored border
+    solid = 1, // Solid colored background
+    outline = 2, // Transparent with colored border
+};
+
+pub const AlertConfig = extern struct {
+    color_scheme: ColorScheme = .primary,
+    variant: AlertVariant = .subtle,
+    icon: Icon = .{},
+};
+
+/// Alert computed style
+pub const AlertStyle = extern struct {
+    bg_color: Color,
+    border_color: Color,
+    text_color: Color,
+    icon_color: Color,
+    border_width: u16,
+    padding: u16,
+    corner_radius: u16,
+    icon_size: u16,
+};
+
+// ============================================================================
+// Tooltip Configuration
+// ============================================================================
+
+pub const TooltipPosition = enum(c_int) {
+    top = 0,
+    bottom = 1,
+    left = 2,
+    right = 3,
+};
+
+pub const TooltipConfig = extern struct {
+    position: TooltipPosition = .top,
+};
+
+/// Tooltip computed style
+pub const TooltipStyle = extern struct {
+    bg_color: Color,
+    text_color: Color,
+    padding_x: u16,
+    padding_y: u16,
+    corner_radius: u16,
+    font_size: u16,
+};
+
+// ============================================================================
 // Input Configuration
 // ============================================================================
 
@@ -506,6 +599,18 @@ extern fn ClayKit_SwitchWidth(ctx: *Context, size: Size) u16;
 extern fn ClayKit_SwitchHeight(ctx: *Context, size: Size) u16;
 extern fn ClayKit_SwitchKnobSize(ctx: *Context, size: Size) u16;
 extern fn ClayKit_SwitchBgColor(ctx: *Context, cfg: SwitchConfig, on: bool, hovered: bool) Color;
+
+// Progress helper functions
+extern fn ClayKit_ComputeProgressStyle(ctx: *Context, cfg: ProgressConfig) ProgressStyle;
+
+// Slider helper functions
+extern fn ClayKit_ComputeSliderStyle(ctx: *Context, cfg: SliderConfig, hovered: bool) SliderStyle;
+
+// Alert helper functions
+extern fn ClayKit_ComputeAlertStyle(ctx: *Context, cfg: AlertConfig) AlertStyle;
+
+// Tooltip helper functions
+extern fn ClayKit_ComputeTooltipStyle(ctx: *Context, cfg: TooltipConfig) TooltipStyle;
 
 // Theme presets (extern const)
 extern const CLAYKIT_THEME_LIGHT: Theme;
@@ -882,6 +987,209 @@ pub fn switch_(ctx: *Context, id: []const u8, on: bool, cfg: SwitchConfig) bool 
     });
 
     return clicked;
+}
+
+/// Compute progress style (for custom rendering)
+pub fn computeProgressStyle(ctx: *Context, cfg: ProgressConfig) ProgressStyle {
+    return ClayKit_ComputeProgressStyle(ctx, cfg);
+}
+
+/// Render a progress bar
+/// value should be between 0.0 and 1.0
+pub fn progress(ctx: *Context, id: []const u8, value: f32, cfg: ProgressConfig) void {
+    const style = ClayKit_ComputeProgressStyle(ctx, cfg);
+    const clamped_value = @max(0.0, @min(1.0, value));
+
+    // Outer track container
+    zclay.UI()(.{
+        .id = zclay.ElementId.ID(id),
+        .layout = .{
+            .sizing = .{ .w = .grow, .h = zclay.SizingAxis.fixed(@floatFromInt(style.height)) },
+        },
+        .background_color = .{ style.track_color.r, style.track_color.g, style.track_color.b, style.track_color.a },
+        .corner_radius = zclay.CornerRadius.all(@floatFromInt(style.corner_radius)),
+    })({
+        // Filled portion
+        if (clamped_value > 0) {
+            zclay.UI()(.{
+                .layout = .{
+                    .sizing = .{
+                        .w = zclay.SizingAxis.percent(clamped_value),
+                        .h = .grow,
+                    },
+                },
+                .background_color = .{ style.fill_color.r, style.fill_color.g, style.fill_color.b, style.fill_color.a },
+                .corner_radius = zclay.CornerRadius.all(@floatFromInt(style.corner_radius)),
+            })({});
+        }
+    });
+}
+
+/// Compute slider style (for custom rendering)
+pub fn computeSliderStyle(ctx: *Context, cfg: SliderConfig, hovered: bool) SliderStyle {
+    return ClayKit_ComputeSliderStyle(ctx, cfg, hovered);
+}
+
+/// Render a slider
+/// Returns whether the slider was clicked (for drag handling)
+/// value should be between cfg.min and cfg.max
+pub fn slider(ctx: *Context, id: []const u8, value: f32, cfg: SliderConfig) bool {
+    const min_val = if (cfg.min == 0 and cfg.max == 0) 0.0 else cfg.min;
+    const max_val = if (cfg.min == 0 and cfg.max == 0) 1.0 else cfg.max;
+    const range = max_val - min_val;
+    const normalized = if (range > 0) (value - min_val) / range else 0;
+    const clamped = @max(0.0, @min(1.0, normalized));
+
+    var clicked: bool = false;
+
+    // Get style with hover state computed inside
+    zclay.UI()(.{
+        .id = zclay.ElementId.ID(id),
+        .layout = .{
+            .sizing = .{ .w = .grow, .h = .fit },
+            .child_alignment = .{ .y = .center },
+        },
+    })({
+        const hovered = zclay.hovered();
+        clicked = hovered;
+        const style = ClayKit_ComputeSliderStyle(ctx, cfg, hovered);
+
+        // Track background
+        zclay.UI()(.{
+            .layout = .{
+                .sizing = .{ .w = .grow, .h = zclay.SizingAxis.fixed(@floatFromInt(style.track_height)) },
+            },
+            .background_color = .{ style.track_color.r, style.track_color.g, style.track_color.b, style.track_color.a },
+            .corner_radius = zclay.CornerRadius.all(@floatFromInt(style.corner_radius)),
+        })({
+            // Filled portion
+            if (clamped > 0) {
+                zclay.UI()(.{
+                    .layout = .{
+                        .sizing = .{
+                            .w = zclay.SizingAxis.percent(clamped),
+                            .h = .grow,
+                        },
+                    },
+                    .background_color = .{ style.fill_color.r, style.fill_color.g, style.fill_color.b, style.fill_color.a },
+                    .corner_radius = zclay.CornerRadius.all(@floatFromInt(style.corner_radius)),
+                })({});
+            }
+        });
+
+        // Thumb (positioned absolutely would be ideal, but we'll use a simple approach)
+        // Note: For a proper slider, you'd want to position the thumb based on value
+        // This is a simplified version that shows the concept
+    });
+
+    return clicked;
+}
+
+/// Compute alert style (for custom rendering)
+pub fn computeAlertStyle(ctx: *Context, cfg: AlertConfig) AlertStyle {
+    return ClayKit_ComputeAlertStyle(ctx, cfg);
+}
+
+/// Render an alert box
+/// The content callback should render the alert content (text, etc.)
+pub fn alert(ctx: *Context, id: []const u8, cfg: AlertConfig, content: fn () void) void {
+    const style = ClayKit_ComputeAlertStyle(ctx, cfg);
+
+    zclay.UI()(.{
+        .id = zclay.ElementId.ID(id),
+        .layout = .{
+            .sizing = .{ .w = .grow, .h = .fit },
+            .padding = zclay.Padding.all(style.padding),
+            .child_gap = 12,
+            .direction = .left_to_right,
+            .child_alignment = .{ .y = .center },
+        },
+        .background_color = .{ style.bg_color.r, style.bg_color.g, style.bg_color.b, style.bg_color.a },
+        .corner_radius = zclay.CornerRadius.all(@floatFromInt(style.corner_radius)),
+        .border = .{
+            .color = .{ style.border_color.r, style.border_color.g, style.border_color.b, style.border_color.a },
+            .width = .{ .left = style.border_width, .right = style.border_width, .top = style.border_width, .bottom = style.border_width },
+        },
+    })({
+        // Icon slot (if icon callback is set and icon id > 0, user renders it)
+        if (cfg.icon.id > 0) {
+            // Placeholder for icon - user should use icon callback
+            zclay.UI()(.{
+                .layout = .{
+                    .sizing = .{
+                        .w = zclay.SizingAxis.fixed(@floatFromInt(style.icon_size)),
+                        .h = zclay.SizingAxis.fixed(@floatFromInt(style.icon_size)),
+                    },
+                },
+            })({});
+        }
+
+        // Content area
+        zclay.UI()(.{
+            .layout = .{
+                .sizing = .{ .w = .grow, .h = .fit },
+                .direction = .top_to_bottom,
+                .child_gap = 4,
+            },
+        })({
+            content();
+        });
+    });
+}
+
+/// Simpler alert that just takes text
+pub fn alertText(ctx: *Context, id: []const u8, text: []const u8, cfg: AlertConfig) void {
+    const style = ClayKit_ComputeAlertStyle(ctx, cfg);
+
+    zclay.UI()(.{
+        .id = zclay.ElementId.ID(id),
+        .layout = .{
+            .sizing = .{ .w = .grow, .h = .fit },
+            .padding = zclay.Padding.all(style.padding),
+            .child_gap = 12,
+            .direction = .left_to_right,
+            .child_alignment = .{ .y = .center },
+        },
+        .background_color = .{ style.bg_color.r, style.bg_color.g, style.bg_color.b, style.bg_color.a },
+        .corner_radius = zclay.CornerRadius.all(@floatFromInt(style.corner_radius)),
+        .border = .{
+            .color = .{ style.border_color.r, style.border_color.g, style.border_color.b, style.border_color.a },
+            .width = .{ .left = style.border_width, .right = style.border_width, .top = style.border_width, .bottom = style.border_width },
+        },
+    })({
+        zclay.text(text, .{
+            .font_size = ctx.theme().font_size.md,
+            .color = .{ style.text_color.r, style.text_color.g, style.text_color.b, style.text_color.a },
+        });
+    });
+}
+
+/// Compute tooltip style (for custom rendering)
+pub fn computeTooltipStyle(ctx: *Context, cfg: TooltipConfig) TooltipStyle {
+    return ClayKit_ComputeTooltipStyle(ctx, cfg);
+}
+
+/// Render a tooltip
+/// Note: Positioning relative to anchor requires floating elements which Clay supports
+/// This is a simplified version that just renders the tooltip content
+pub fn tooltip(ctx: *Context, id: []const u8, text: []const u8, cfg: TooltipConfig) void {
+    const style = ClayKit_ComputeTooltipStyle(ctx, cfg);
+    // Note: cfg.position would be used for floating placement in a full implementation
+
+    zclay.UI()(.{
+        .id = zclay.ElementId.ID(id),
+        .layout = .{
+            .sizing = .{ .w = .fit, .h = .fit },
+            .padding = .{ .left = style.padding_x, .right = style.padding_x, .top = style.padding_y, .bottom = style.padding_y },
+        },
+        .background_color = .{ style.bg_color.r, style.bg_color.g, style.bg_color.b, style.bg_color.a },
+        .corner_radius = zclay.CornerRadius.all(@floatFromInt(style.corner_radius)),
+    })({
+        zclay.text(text, .{
+            .font_size = style.font_size,
+            .color = .{ style.text_color.r, style.text_color.g, style.text_color.b, style.text_color.a },
+        });
+    });
 }
 
 // ============================================================================
