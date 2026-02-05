@@ -23,6 +23,9 @@ var pending_click_x: f32 = 0;
 // Tabs state
 var active_tab: usize = 0;
 
+// Modal state
+var show_modal: bool = false;
+
 // ClayKit text measurement callback (different signature from zclay)
 fn measureTextForClayKit(
     text: [*c]const u8,
@@ -279,6 +282,14 @@ pub fn main() !void {
                             active_tab = hovered;
                         }
                     }
+
+                    // Modal trigger button
+                    zclay.text("Modal", claykit.textStyle(&ctx, .{ .size = .sm }));
+                    if (claykit.button(&ctx, "OpenModal", "Open Modal", .{})) {
+                        if (raylib.isMouseButtonPressed(.left)) {
+                            show_modal = true;
+                        }
+                    }
                 });
 
                 // Center panel
@@ -367,6 +378,55 @@ pub fn main() !void {
                 });
             });
         });
+
+        // Modal (rendered as floating overlay)
+        // Returns true when backdrop (not modal content) is hovered
+        const backdrop_hovered = claykit.modal(&ctx, "DemoModal", show_modal, .{}, struct {
+            fn content() void {
+                zclay.text("Modal Title", .{
+                    .font_size = 24,
+                    .color = .{ 50, 50, 50, 255 },
+                });
+                zclay.text("This is a modal dialog. Click the backdrop or the close button to dismiss.", .{
+                    .font_size = 16,
+                    .color = .{ 100, 100, 100, 255 },
+                });
+
+                // Close button row
+                zclay.UI()(.{
+                    .layout = .{
+                        .sizing = .{ .w = .grow },
+                        .child_alignment = .{ .x = .right },
+                    },
+                })({
+                    zclay.UI()(.{
+                        .id = zclay.ElementId.ID("CloseModalBtn"),
+                        .layout = .{
+                            .padding = .{ .left = 16, .right = 16, .top = 8, .bottom = 8 },
+                        },
+                        .background_color = .{ 59, 130, 246, 255 },
+                        .corner_radius = zclay.CornerRadius.all(6),
+                    })({
+                        zclay.text("Close", .{
+                            .font_size = 14,
+                            .color = .{ 255, 255, 255, 255 },
+                        });
+                    });
+                });
+            }
+        }.content);
+
+        // Close modal on backdrop click or close button click
+        if (show_modal and raylib.isMouseButtonPressed(.left)) {
+            if (backdrop_hovered) {
+                show_modal = false;
+            } else {
+                const close_btn_id = zclay.ElementId.ID("CloseModalBtn");
+                if (zclay.pointerOver(close_btn_id)) {
+                    show_modal = false;
+                }
+            }
+        }
 
         // End layout and get render commands
         const render_commands = zclay.endLayout();

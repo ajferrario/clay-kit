@@ -639,6 +639,35 @@ pub const TabsStyle = extern struct {
 };
 
 // ============================================================================
+// Modal Configuration
+// ============================================================================
+
+pub const ModalSize = enum(c_int) {
+    sm = 0, // Small modal (400px)
+    md = 1, // Medium modal (500px)
+    lg = 2, // Large modal (600px)
+    xl = 3, // Extra large modal (800px)
+    full = 4, // Full width (with margins)
+};
+
+pub const ModalConfig = extern struct {
+    size: ModalSize = .md,
+    close_on_backdrop: bool = true,
+    z_index: u16 = 0, // 0 = default (1000)
+};
+
+/// Modal computed style
+pub const ModalStyle = extern struct {
+    backdrop_color: Color,
+    bg_color: Color,
+    border_color: Color,
+    width: u16,
+    padding: u16,
+    corner_radius: u16,
+    z_index: u16,
+};
+
+// ============================================================================
 // Input Configuration
 // ============================================================================
 
@@ -745,6 +774,9 @@ extern fn ClayKit_ComputeTooltipStyle(ctx: *Context, cfg: TooltipConfig) Tooltip
 
 // Tabs helper functions
 extern fn ClayKit_ComputeTabsStyle(ctx: *Context, cfg: TabsConfig) TabsStyle;
+
+// Modal helper functions
+extern fn ClayKit_ComputeModalStyle(ctx: *Context, cfg: ModalConfig) ModalStyle;
 
 // Theme presets (extern const)
 extern const CLAYKIT_THEME_LIGHT: Theme;
@@ -1582,6 +1614,90 @@ fn renderTab(ctx: *Context, parent_id: []const u8, label: []const u8, index: usi
     });
 
     return was_clicked;
+}
+
+// ============================================================================
+// Modal
+// ============================================================================
+
+/// Compute modal style (for custom rendering)
+pub fn computeModalStyle(ctx: *Context, cfg: ModalConfig) ModalStyle {
+    return ClayKit_ComputeModalStyle(ctx, cfg);
+}
+
+/// Render a modal with backdrop. Returns true if backdrop was clicked (for closing).
+/// The `is_open` parameter controls visibility - when false, nothing is rendered.
+/// The `content` callback renders the modal body content.
+pub fn modal(ctx: *Context, id: []const u8, is_open: bool, cfg: ModalConfig, content: fn () void) bool {
+    if (!is_open) return false;
+
+    const style = ClayKit_ComputeModalStyle(ctx, cfg);
+    var backdrop_clicked = false;
+
+    // Backdrop - full screen overlay attached to root
+    zclay.UI()(.{
+        .id = zclay.ElementId.IDI(id, 0), // backdrop
+        .layout = .{
+            .sizing = .{ .w = .grow, .h = .grow },
+            .child_alignment = .{ .x = .center, .y = .center },
+        },
+        .background_color = .{
+            style.backdrop_color.r,
+            style.backdrop_color.g,
+            style.backdrop_color.b,
+            style.backdrop_color.a,
+        },
+        .floating = .{
+            .attach_to = .to_root,
+            .z_index = @intCast(style.z_index),
+            .pointer_capture_mode = .capture,
+        },
+    })({
+        // Check if backdrop itself was clicked (not the modal content)
+        backdrop_clicked = zclay.hovered() and cfg.close_on_backdrop;
+
+        // Modal container
+        const modal_width: zclay.SizingAxis = if (style.width > 0)
+            zclay.SizingAxis.fixed(@floatFromInt(style.width))
+        else
+            zclay.SizingAxis.growMinMax(.{ .min = 100, .max = 10000 });
+
+        zclay.UI()(.{
+            .id = zclay.ElementId.ID(id),
+            .layout = .{
+                .sizing = .{ .w = modal_width, .h = .fit },
+                .padding = zclay.Padding.all(style.padding),
+                .child_gap = 16,
+                .direction = .top_to_bottom,
+            },
+            .background_color = .{
+                style.bg_color.r,
+                style.bg_color.g,
+                style.bg_color.b,
+                style.bg_color.a,
+            },
+            .corner_radius = zclay.CornerRadius.all(@floatFromInt(style.corner_radius)),
+            .border = .{
+                .color = .{
+                    style.border_color.r,
+                    style.border_color.g,
+                    style.border_color.b,
+                    style.border_color.a,
+                },
+                .width = zclay.BorderWidth.all(1),
+            },
+        })({
+            // If hovering modal content, don't close on backdrop click
+            if (zclay.hovered()) {
+                backdrop_clicked = false;
+            }
+
+            // Render user content
+            content();
+        });
+    });
+
+    return backdrop_clicked;
 }
 
 // ============================================================================

@@ -721,6 +721,35 @@ typedef struct ClayKit_TabsStyle {
 } ClayKit_TabsStyle;
 
 /* ============================================================================
+ * Modal Configuration
+ * ============================================================================ */
+
+typedef enum ClayKit_ModalSize {
+    CLAYKIT_MODAL_SM = 0,        /* Small modal (400px) */
+    CLAYKIT_MODAL_MD = 1,        /* Medium modal (500px) */
+    CLAYKIT_MODAL_LG = 2,        /* Large modal (600px) */
+    CLAYKIT_MODAL_XL = 3,        /* Extra large modal (800px) */
+    CLAYKIT_MODAL_FULL = 4       /* Full width (with margins) */
+} ClayKit_ModalSize;
+
+typedef struct ClayKit_ModalConfig {
+    ClayKit_ModalSize size;      /* Modal width */
+    bool close_on_backdrop;      /* Close when clicking backdrop (default: true) */
+    uint16_t z_index;            /* Z-index for stacking (default: 1000) */
+} ClayKit_ModalConfig;
+
+/* Modal computed style */
+typedef struct ClayKit_ModalStyle {
+    Clay_Color backdrop_color;   /* Semi-transparent backdrop */
+    Clay_Color bg_color;         /* Modal background */
+    Clay_Color border_color;     /* Modal border */
+    uint16_t width;              /* Modal width in pixels */
+    uint16_t padding;            /* Inner padding */
+    uint16_t corner_radius;      /* Corner radius */
+    uint16_t z_index;            /* Z-index for floating */
+} ClayKit_ModalStyle;
+
+/* ============================================================================
  * Input Configuration
  * ============================================================================ */
 
@@ -796,6 +825,9 @@ ClayKit_TooltipStyle ClayKit_ComputeTooltipStyle(ClayKit_Context *ctx, ClayKit_T
 
 /* Tabs helper functions */
 ClayKit_TabsStyle ClayKit_ComputeTabsStyle(ClayKit_Context *ctx, ClayKit_TabsConfig cfg);
+
+/* Modal helper functions */
+ClayKit_ModalStyle ClayKit_ComputeModalStyle(ClayKit_Context *ctx, ClayKit_ModalConfig cfg);
 
 /* ============================================================================
  * Theme Presets (defined in implementation)
@@ -1802,6 +1834,47 @@ ClayKit_TabsStyle ClayKit_ComputeTabsStyle(ClayKit_Context *ctx, ClayKit_TabsCon
     }
 
     style.corner_radius = theme->radius.sm;
+
+    return style;
+}
+
+/* ----------------------------------------------------------------------------
+ * Modal
+ * ---------------------------------------------------------------------------- */
+
+ClayKit_ModalStyle ClayKit_ComputeModalStyle(ClayKit_Context *ctx, ClayKit_ModalConfig cfg) {
+    ClayKit_Theme *theme = ctx->theme_ptr;
+    ClayKit_ModalStyle style;
+
+    /* Semi-transparent black backdrop */
+    style.backdrop_color = (Clay_Color){ 0, 0, 0, 128 };
+    style.bg_color = theme->bg;
+    style.border_color = theme->border;
+    style.corner_radius = theme->radius.lg;
+    style.padding = theme->spacing.lg;
+
+    /* Z-index with default */
+    style.z_index = cfg.z_index > 0 ? cfg.z_index : 1000;
+
+    /* Width based on size */
+    switch (cfg.size) {
+        case CLAYKIT_MODAL_SM:
+            style.width = 400;
+            break;
+        case CLAYKIT_MODAL_LG:
+            style.width = 600;
+            break;
+        case CLAYKIT_MODAL_XL:
+            style.width = 800;
+            break;
+        case CLAYKIT_MODAL_FULL:
+            style.width = 0; /* Will use grow with margins */
+            break;
+        case CLAYKIT_MODAL_MD:
+        default:
+            style.width = 500;
+            break;
+    }
 
     return style;
 }
