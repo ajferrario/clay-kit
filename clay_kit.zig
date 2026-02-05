@@ -608,6 +608,37 @@ pub const TooltipStyle = extern struct {
 };
 
 // ============================================================================
+// Tabs Configuration
+// ============================================================================
+
+pub const TabsVariant = enum(c_int) {
+    line = 0, // Underline indicator
+    enclosed = 1, // Enclosed/boxed tabs
+    soft = 2, // Soft rounded background
+};
+
+pub const TabsConfig = extern struct {
+    color_scheme: ColorScheme = .primary,
+    variant: TabsVariant = .line,
+    size: Size = .md,
+};
+
+/// Tabs computed style
+pub const TabsStyle = extern struct {
+    active_color: Color,
+    inactive_color: Color,
+    active_text: Color,
+    bg_color: Color,
+    border_color: Color,
+    padding_x: u16,
+    padding_y: u16,
+    font_size: u16,
+    indicator_height: u16,
+    corner_radius: u16,
+    gap: u16,
+};
+
+// ============================================================================
 // Input Configuration
 // ============================================================================
 
@@ -711,6 +742,9 @@ extern fn ClayKit_ComputeAlertStyle(ctx: *Context, cfg: AlertConfig) AlertStyle;
 
 // Tooltip helper functions
 extern fn ClayKit_ComputeTooltipStyle(ctx: *Context, cfg: TooltipConfig) TooltipStyle;
+
+// Tabs helper functions
+extern fn ClayKit_ComputeTabsStyle(ctx: *Context, cfg: TabsConfig) TabsStyle;
 
 // Theme presets (extern const)
 extern const CLAYKIT_THEME_LIGHT: Theme;
@@ -1456,6 +1490,98 @@ pub fn tooltip(ctx: *Context, id: []const u8, text: []const u8, cfg: TooltipConf
             .color = .{ style.text_color.r, style.text_color.g, style.text_color.b, style.text_color.a },
         });
     });
+}
+
+/// Compute tabs style (for custom rendering)
+pub fn computeTabsStyle(ctx: *Context, cfg: TabsConfig) TabsStyle {
+    return ClayKit_ComputeTabsStyle(ctx, cfg);
+}
+
+/// Render a tab bar and return which tab was clicked (or null if none)
+/// active_index is the currently active tab (0-indexed)
+pub fn tabs(ctx: *Context, id: []const u8, labels: []const []const u8, active_index: usize, cfg: TabsConfig) ?usize {
+    const style = ClayKit_ComputeTabsStyle(ctx, cfg);
+    var clicked_tab: ?usize = null;
+
+    // Tab bar container
+    zclay.UI()(.{
+        .id = zclay.ElementId.ID(id),
+        .layout = .{
+            .sizing = .{ .w = .grow, .h = .fit },
+            .direction = .left_to_right,
+            .child_gap = style.gap,
+        },
+        .background_color = .{ style.bg_color.r, style.bg_color.g, style.bg_color.b, style.bg_color.a },
+    })({
+        for (labels, 0..) |label, i| {
+            const is_active = i == active_index;
+            const is_hovered = renderTab(ctx, id, label, i, is_active, style, cfg.variant);
+            if (is_hovered) {
+                clicked_tab = i;
+            }
+        }
+    });
+
+    return clicked_tab;
+}
+
+/// Internal: render a single tab
+fn renderTab(ctx: *Context, parent_id: []const u8, label: []const u8, index: usize, is_active: bool, style: TabsStyle, variant: TabsVariant) bool {
+    _ = parent_id;
+    var was_clicked = false;
+
+    // Determine colors based on active state
+    const text_color = if (is_active) style.active_text else style.inactive_color;
+    const bg_color = switch (variant) {
+        .line => Color{ .r = 0, .g = 0, .b = 0, .a = 0 },
+        .enclosed, .soft => if (is_active) style.active_color else Color{ .r = 0, .g = 0, .b = 0, .a = 0 },
+    };
+
+    // Tab container
+    zclay.UI()(.{
+        .id = zclay.ElementId.IDI("tab", @intCast(index)),
+        .layout = .{
+            .sizing = .{ .w = .fit, .h = .fit },
+            .padding = .{
+                .left = style.padding_x,
+                .right = style.padding_x,
+                .top = style.padding_y,
+                .bottom = style.padding_y,
+            },
+            .direction = .top_to_bottom,
+        },
+        .background_color = .{ bg_color.r, bg_color.g, bg_color.b, bg_color.a },
+        .corner_radius = if (variant != .line) zclay.CornerRadius.all(@floatFromInt(style.corner_radius)) else .{},
+    })({
+        was_clicked = zclay.hovered();
+
+        // Tab label
+        zclay.text(label, .{
+            .font_size = style.font_size,
+            .font_id = ctx.theme().font_id.body,
+            .color = .{ text_color.r, text_color.g, text_color.b, text_color.a },
+        });
+
+        // Underline indicator for line variant
+        if (variant == .line and is_active) {
+            zclay.UI()(.{
+                .layout = .{
+                    .sizing = .{
+                        .w = .grow,
+                        .h = zclay.SizingAxis.fixed(@floatFromInt(style.indicator_height)),
+                    },
+                },
+                .background_color = .{
+                    style.active_color.r,
+                    style.active_color.g,
+                    style.active_color.b,
+                    style.active_color.a,
+                },
+            })({});
+        }
+    });
+
+    return was_clicked;
 }
 
 // ============================================================================

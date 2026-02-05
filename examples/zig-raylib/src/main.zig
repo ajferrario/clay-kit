@@ -20,6 +20,9 @@ var input_state: claykit.InputState = undefined;
 var pending_input_click: bool = false;
 var pending_click_x: f32 = 0;
 
+// Tabs state
+var active_tab: usize = 0;
+
 // ClayKit text measurement callback (different signature from zclay)
 fn measureTextForClayKit(
     text: [*c]const u8,
@@ -220,13 +223,13 @@ pub fn main() !void {
                     .direction = .left_to_right,
                 },
             })({
-                // Left panel - simplified for debugging
+                // Left panel
                 zclay.UI()(.{
                     .id = zclay.ElementId.ID("LeftPanel"),
                     .layout = .{
                         .sizing = .{ .w = zclay.SizingAxis.fixed(300), .h = .fit },
                         .padding = zclay.Padding.all(16),
-                        .child_gap = 12,
+                        .child_gap = 10,
                         .direction = .top_to_bottom,
                     },
                     .background_color = toZclayColor(theme.secondary),
@@ -240,11 +243,9 @@ pub fn main() !void {
                     // Button
                     _ = claykit.button(&ctx, "Btn1", "Button", .{});
 
-                    // Progress bars
+                    // Progress bar
                     zclay.text("Progress", claykit.textStyle(&ctx, .{ .size = .sm }));
                     claykit.progress(&ctx, "Progress1", 0.7, .{});
-                    claykit.progress(&ctx, "Progress2", 0.4, .{ .color_scheme = .success });
-                    claykit.progress(&ctx, "Progress3", 0.9, .{ .color_scheme = .warning, .size = .lg });
 
                     // Slider
                     zclay.text("Slider", claykit.textStyle(&ctx, .{ .size = .sm }));
@@ -253,6 +254,31 @@ pub fn main() !void {
                     // Text Input
                     zclay.text("Text Input", claykit.textStyle(&ctx, .{ .size = .sm }));
                     input_clicked = claykit.textInput(&ctx, "TextInput1", &input_state, .{}, "Type here...");
+
+                    // Alerts
+                    zclay.text("Alerts", claykit.textStyle(&ctx, .{ .size = .sm }));
+                    claykit.alertText(&ctx, "Alert1", "Info alert", .{});
+                    claykit.alertText(&ctx, "Alert2", "Success!", .{ .color_scheme = .success });
+
+                    // Tooltip (static display for demo)
+                    zclay.text("Tooltip", claykit.textStyle(&ctx, .{ .size = .sm }));
+                    claykit.tooltip(&ctx, "Tooltip1", "This is a tooltip", .{});
+
+                    // Tabs (line variant)
+                    zclay.text("Tabs", claykit.textStyle(&ctx, .{ .size = .sm }));
+                    const tab_labels = [_][]const u8{ "Tab 1", "Tab 2", "Tab 3" };
+                    if (claykit.tabs(&ctx, "Tabs1", &tab_labels, active_tab, .{})) |hovered| {
+                        if (raylib.isMouseButtonPressed(.left)) {
+                            active_tab = hovered;
+                        }
+                    }
+
+                    // Tabs with enclosed variant
+                    if (claykit.tabs(&ctx, "Tabs2", &tab_labels, active_tab, .{ .variant = .enclosed })) |hovered| {
+                        if (raylib.isMouseButtonPressed(.left)) {
+                            active_tab = hovered;
+                        }
+                    }
                 });
 
                 // Center panel
@@ -393,16 +419,32 @@ pub fn main() !void {
                 },
                 .border => {
                     const config = cmd.render_data.border;
-                    raylib.drawRectangleLinesEx(
-                        .{
-                            .x = cmd.bounding_box.x,
-                            .y = cmd.bounding_box.y,
-                            .width = cmd.bounding_box.width,
-                            .height = cmd.bounding_box.height,
-                        },
-                        @floatFromInt(config.width.top),
-                        toRaylibColor(config.color),
-                    );
+                    const rect = raylib.Rectangle{
+                        .x = cmd.bounding_box.x,
+                        .y = cmd.bounding_box.y,
+                        .width = cmd.bounding_box.width,
+                        .height = cmd.bounding_box.height,
+                    };
+                    const avg_radius = (config.corner_radius.top_left + config.corner_radius.top_right + config.corner_radius.bottom_left + config.corner_radius.bottom_right) / 4.0;
+                    if (avg_radius > 0) {
+                        const roundness = if (cmd.bounding_box.width > 0 and cmd.bounding_box.height > 0)
+                            avg_radius / @min(cmd.bounding_box.width, cmd.bounding_box.height) * 2.0
+                        else
+                            0;
+                        raylib.drawRectangleRoundedLinesEx(
+                            rect,
+                            roundness,
+                            4,
+                            @floatFromInt(config.width.top),
+                            toRaylibColor(config.color),
+                        );
+                    } else {
+                        raylib.drawRectangleLinesEx(
+                            rect,
+                            @floatFromInt(config.width.top),
+                            toRaylibColor(config.color),
+                        );
+                    }
                 },
                 else => {},
             }

@@ -690,6 +690,37 @@ typedef struct ClayKit_TooltipStyle {
 } ClayKit_TooltipStyle;
 
 /* ============================================================================
+ * Tabs Configuration
+ * ============================================================================ */
+
+typedef enum ClayKit_TabsVariant {
+    CLAYKIT_TABS_LINE = 0,       /* Underline indicator */
+    CLAYKIT_TABS_ENCLOSED = 1,   /* Enclosed/boxed tabs */
+    CLAYKIT_TABS_SOFT = 2        /* Soft rounded background */
+} ClayKit_TabsVariant;
+
+typedef struct ClayKit_TabsConfig {
+    ClayKit_ColorScheme color_scheme;  /* Active tab color */
+    ClayKit_TabsVariant variant;       /* Visual style */
+    ClayKit_Size size;                 /* Size affects padding/font */
+} ClayKit_TabsConfig;
+
+/* Tabs computed style */
+typedef struct ClayKit_TabsStyle {
+    Clay_Color active_color;     /* Active tab indicator/bg color */
+    Clay_Color inactive_color;   /* Inactive tab text color */
+    Clay_Color active_text;      /* Active tab text color */
+    Clay_Color bg_color;         /* Tab bar background */
+    Clay_Color border_color;     /* Border color (for enclosed) */
+    uint16_t padding_x;          /* Tab horizontal padding */
+    uint16_t padding_y;          /* Tab vertical padding */
+    uint16_t font_size;          /* Font size */
+    uint16_t indicator_height;   /* Underline height (for line variant) */
+    uint16_t corner_radius;      /* Corner radius (for enclosed/soft) */
+    uint16_t gap;                /* Gap between tabs */
+} ClayKit_TabsStyle;
+
+/* ============================================================================
  * Input Configuration
  * ============================================================================ */
 
@@ -762,6 +793,9 @@ ClayKit_AlertStyle ClayKit_ComputeAlertStyle(ClayKit_Context *ctx, ClayKit_Alert
 
 /* Tooltip helper functions */
 ClayKit_TooltipStyle ClayKit_ComputeTooltipStyle(ClayKit_Context *ctx, ClayKit_TooltipConfig cfg);
+
+/* Tabs helper functions */
+ClayKit_TabsStyle ClayKit_ComputeTabsStyle(ClayKit_Context *ctx, ClayKit_TabsConfig cfg);
 
 /* ============================================================================
  * Theme Presets (defined in implementation)
@@ -1696,6 +1730,78 @@ ClayKit_TooltipStyle ClayKit_ComputeTooltipStyle(ClayKit_Context *ctx, ClayKit_T
     style.padding_y = theme->spacing.xs;
     style.corner_radius = theme->radius.sm;
     style.font_size = theme->font_size.sm;
+
+    return style;
+}
+
+/* ----------------------------------------------------------------------------
+ * Tabs
+ * ---------------------------------------------------------------------------- */
+
+ClayKit_TabsStyle ClayKit_ComputeTabsStyle(ClayKit_Context *ctx, ClayKit_TabsConfig cfg) {
+    ClayKit_Theme *theme = ctx->theme_ptr;
+    ClayKit_TabsStyle style;
+
+    Clay_Color scheme_color = ClayKit_GetSchemeColor(theme, cfg.color_scheme);
+
+    style.active_color = scheme_color;
+    style.inactive_color = theme->muted;
+    style.bg_color = (Clay_Color){ 0, 0, 0, 0 }; /* Transparent by default */
+    style.border_color = theme->border;
+
+    /* Active text color depends on variant */
+    switch (cfg.variant) {
+        case CLAYKIT_TABS_ENCLOSED:
+        case CLAYKIT_TABS_SOFT:
+            style.active_text = (Clay_Color){ 255, 255, 255, 255 };
+            break;
+        case CLAYKIT_TABS_LINE:
+        default:
+            style.active_text = scheme_color;
+            break;
+    }
+
+    /* Sizes based on size enum */
+    switch (cfg.size) {
+        case CLAYKIT_SIZE_XS:
+            style.padding_x = 8;
+            style.padding_y = 4;
+            style.font_size = theme->font_size.xs;
+            style.indicator_height = 2;
+            style.gap = 4;
+            break;
+        case CLAYKIT_SIZE_SM:
+            style.padding_x = 12;
+            style.padding_y = 6;
+            style.font_size = theme->font_size.sm;
+            style.indicator_height = 2;
+            style.gap = 8;
+            break;
+        case CLAYKIT_SIZE_LG:
+            style.padding_x = 20;
+            style.padding_y = 12;
+            style.font_size = theme->font_size.lg;
+            style.indicator_height = 3;
+            style.gap = 16;
+            break;
+        case CLAYKIT_SIZE_XL:
+            style.padding_x = 24;
+            style.padding_y = 14;
+            style.font_size = theme->font_size.xl;
+            style.indicator_height = 4;
+            style.gap = 20;
+            break;
+        case CLAYKIT_SIZE_MD:
+        default:
+            style.padding_x = 16;
+            style.padding_y = 8;
+            style.font_size = theme->font_size.md;
+            style.indicator_height = 2;
+            style.gap = 12;
+            break;
+    }
+
+    style.corner_radius = theme->radius.sm;
 
     return style;
 }
