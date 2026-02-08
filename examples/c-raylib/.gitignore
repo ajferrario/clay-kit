@@ -1,0 +1,7 @@
+# Build artifacts
+claykit-demo-c
+libraylib.a
+*.o
+
+# Resources copied at build time
+resources/

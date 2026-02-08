@@ -97,6 +97,49 @@ int main(void) {
     printf("Spacer sizing type: %d (expected GROW=1)\n",
            spacer_layout.sizing.width.type);
 
+    /* Test component style computation functions */
+    printf("\n--- Component Style Tests ---\n");
+
+    ClayKit_BadgeStyle badge_style = ClayKit_ComputeBadgeStyle(&ctx, (ClayKit_BadgeConfig){0});
+    printf("Badge font size: %u, corner radius: %u\n",
+           badge_style.font_size, badge_style.corner_radius);
+
+    ClayKit_ProgressStyle progress_style = ClayKit_ComputeProgressStyle(&ctx, (ClayKit_ProgressConfig){0});
+    printf("Progress height: %u, corner radius: %u\n",
+           progress_style.height, progress_style.corner_radius);
+
+    ClayKit_SliderStyle slider_style = ClayKit_ComputeSliderStyle(&ctx, (ClayKit_SliderConfig){0}, false);
+    printf("Slider track height: %u, thumb size: %u\n",
+           slider_style.track_height, slider_style.thumb_size);
+
+    ClayKit_AlertStyle alert_style = ClayKit_ComputeAlertStyle(&ctx, (ClayKit_AlertConfig){0});
+    printf("Alert padding: %u, corner radius: %u\n",
+           alert_style.padding, alert_style.corner_radius);
+
+    ClayKit_TooltipStyle tooltip_style = ClayKit_ComputeTooltipStyle(&ctx, (ClayKit_TooltipConfig){0});
+    printf("Tooltip padding: %u x %u, font size: %u\n",
+           tooltip_style.padding_x, tooltip_style.padding_y, tooltip_style.font_size);
+
+    ClayKit_TabsStyle tabs_style = ClayKit_ComputeTabsStyle(&ctx, (ClayKit_TabsConfig){0});
+    printf("Tabs padding: %u x %u, indicator height: %u\n",
+           tabs_style.padding_x, tabs_style.padding_y, tabs_style.indicator_height);
+
+    ClayKit_ModalStyle modal_style = ClayKit_ComputeModalStyle(&ctx, (ClayKit_ModalConfig){0});
+    printf("Modal width: %u, z-index: %u\n",
+           modal_style.width, modal_style.z_index);
+
+    ClayKit_InputStyle input_style = ClayKit_ComputeInputStyle(&ctx, (ClayKit_InputConfig){0}, false);
+    printf("Input padding: %u x %u, cursor width: %u\n",
+           input_style.padding_x, input_style.padding_y, input_style.cursor_width);
+
+    /* Test helper functions */
+    uint16_t checkbox_sz = ClayKit_CheckboxSize(&ctx, CLAYKIT_SIZE_MD);
+    printf("Checkbox size (MD): %u\n", checkbox_sz);
+
+    uint16_t switch_w = ClayKit_SwitchWidth(&ctx, CLAYKIT_SIZE_MD);
+    uint16_t switch_h = ClayKit_SwitchHeight(&ctx, CLAYKIT_SIZE_MD);
+    printf("Switch size (MD): %u x %u\n", switch_w, switch_h);
+
     printf("\nAll tests passed!\n");
     return 0;
 }

@@ -727,8 +727,9 @@ extern fn ClayKit_GetRadius(theme: *Theme, size: Size) u16;
 // We expose simpler Zig wrappers below
 extern fn ClayKit_TextStyle(ctx: *Context, cfg: TextConfig) zclay.TextElementConfig;
 extern fn ClayKit_HeadingStyle(ctx: *Context, cfg: HeadingConfig) zclay.TextElementConfig;
-// Badge - compute style for Zig to render with zclay
+// Badge functions
 extern fn ClayKit_ComputeBadgeStyle(ctx: *Context, cfg: BadgeConfig) BadgeStyle;
+extern fn ClayKit_BadgeRaw(ctx: *Context, text: [*c]const u8, text_len: i32, cfg: BadgeConfig) void;
 
 // Button helper functions
 extern fn ClayKit_ButtonBgColor(ctx: *Context, cfg: ButtonConfig, hovered: bool) Color;
@@ -739,6 +740,7 @@ extern fn ClayKit_ButtonPaddingX(ctx: *Context, size: Size) u16;
 extern fn ClayKit_ButtonPaddingY(ctx: *Context, size: Size) u16;
 extern fn ClayKit_ButtonRadius(ctx: *Context, size: Size) u16;
 extern fn ClayKit_ButtonFontSize(ctx: *Context, size: Size) u16;
+extern fn ClayKit_Button(ctx: *Context, text: [*c]const u8, text_len: i32, cfg: ButtonConfig) bool;
 
 // Input helper functions
 extern fn ClayKit_InputPaddingX(ctx: *Context, size: Size) u16;
@@ -762,21 +764,31 @@ extern fn ClayKit_SwitchBgColor(ctx: *Context, cfg: SwitchConfig, on: bool, hove
 
 // Progress helper functions
 extern fn ClayKit_ComputeProgressStyle(ctx: *Context, cfg: ProgressConfig) ProgressStyle;
+extern fn ClayKit_Progress(ctx: *Context, value: f32, cfg: ProgressConfig) void;
 
 // Slider helper functions
 extern fn ClayKit_ComputeSliderStyle(ctx: *Context, cfg: SliderConfig, hovered: bool) SliderStyle;
 
 // Alert helper functions
 extern fn ClayKit_ComputeAlertStyle(ctx: *Context, cfg: AlertConfig) AlertStyle;
+extern fn ClayKit_AlertText(ctx: *Context, text: [*c]const u8, text_len: i32, cfg: AlertConfig) void;
 
 // Tooltip helper functions
 extern fn ClayKit_ComputeTooltipStyle(ctx: *Context, cfg: TooltipConfig) TooltipStyle;
+extern fn ClayKit_Tooltip(ctx: *Context, text: [*c]const u8, text_len: i32, cfg: TooltipConfig) void;
 
 // Tabs helper functions
 extern fn ClayKit_ComputeTabsStyle(ctx: *Context, cfg: TabsConfig) TabsStyle;
 
 // Modal helper functions
 extern fn ClayKit_ComputeModalStyle(ctx: *Context, cfg: ModalConfig) ModalStyle;
+
+// Component rendering functions
+extern fn ClayKit_Checkbox(ctx: *Context, checked: bool, cfg: CheckboxConfig) bool;
+extern fn ClayKit_Switch(ctx: *Context, on: bool, cfg: SwitchConfig) bool;
+extern fn ClayKit_Slider(ctx: *Context, value: f32, cfg: SliderConfig) bool;
+extern fn ClayKit_Tab(ctx: *Context, label: [*c]const u8, label_len: i32, is_active: bool, cfg: TabsConfig) bool;
+extern fn ClayKit_TextInput(ctx: *Context, id: [*c]const u8, id_len: i32, state: *InputState, cfg: InputConfig, placeholder: [*c]const u8, placeholder_len: i32) bool;
 
 // Theme presets (extern const)
 extern const CLAYKIT_THEME_LIGHT: Theme;
@@ -906,28 +918,9 @@ pub fn computeBadgeStyle(ctx: *Context, cfg: BadgeConfig) BadgeStyle {
     return ClayKit_ComputeBadgeStyle(ctx, cfg);
 }
 
-/// Render a badge element using zclay (must be called within a zclay layout context)
+/// Render a badge element (calls C implementation)
 pub fn badge(ctx: *Context, text: []const u8, cfg: BadgeConfig) void {
-    const style = ClayKit_ComputeBadgeStyle(ctx, cfg);
-
-    zclay.UI()(.{
-        .layout = .{
-            .sizing = .{ .w = .fit, .h = .fit },
-            .padding = .{ .left = style.pad_x, .right = style.pad_x, .top = style.pad_y, .bottom = style.pad_y },
-        },
-        .background_color = .{ style.bg_color.r, style.bg_color.g, style.bg_color.b, style.bg_color.a },
-        .corner_radius = zclay.CornerRadius.all(@floatFromInt(style.corner_radius)),
-        .border = .{
-            .color = .{ style.border_color.r, style.border_color.g, style.border_color.b, style.border_color.a },
-            .width = .{ .left = style.border_width, .right = style.border_width, .top = style.border_width, .bottom = style.border_width },
-        },
-    })({
-        zclay.text(text, .{
-            .font_size = style.font_size,
-            .font_id = style.font_id,
-            .color = .{ style.text_color.r, style.text_color.g, style.text_color.b, style.text_color.a },
-        });
-    });
+    ClayKit_BadgeRaw(ctx, text.ptr, @intCast(text.len), cfg);
 }
 
 /// Get button background color (use with Clay_Hovered() for hover state)
@@ -971,49 +964,12 @@ pub fn buttonFontSize(ctx: *Context, size: Size) u16 {
 }
 
 /// Render a button using zclay - returns whether the button was hovered
+/// Render a button (calls C implementation)
 /// Example:
 ///   const hovered = claykit.button(&ctx, "myBtn", "Click Me", .{ .color_scheme = .primary });
 pub fn button(ctx: *Context, id: []const u8, text: []const u8, cfg: ButtonConfig) bool {
-    const pad_x = ClayKit_ButtonPaddingX(ctx, cfg.size);
-    const pad_y = ClayKit_ButtonPaddingY(ctx, cfg.size);
-    const radius = ClayKit_ButtonRadius(ctx, cfg.size);
-    const font_size = ClayKit_ButtonFontSize(ctx, cfg.size);
-    const border_width = ClayKit_ButtonBorderWidth(cfg);
-
-    var hovered: bool = false;
-
-    zclay.UI()(.{
-        .id = zclay.ElementId.ID(id),
-        .layout = .{
-            .sizing = .{ .w = .fit, .h = .fit },
-            .padding = .{ .left = pad_x, .right = pad_x, .top = pad_y, .bottom = pad_y },
-            .child_gap = 8,
-            .child_alignment = .{ .x = .center, .y = .center },
-            .direction = .left_to_right,
-        },
-        .background_color = blk: {
-            hovered = zclay.hovered();
-            const bg = ClayKit_ButtonBgColor(ctx, cfg, hovered);
-            break :blk .{ bg.r, bg.g, bg.b, bg.a };
-        },
-        .corner_radius = zclay.CornerRadius.all(@floatFromInt(radius)),
-        .border = .{
-            .color = blk: {
-                const c = ClayKit_ButtonBorderColor(ctx, cfg);
-                break :blk .{ c.r, c.g, c.b, c.a };
-            },
-            .width = .{ .left = border_width, .right = border_width, .top = border_width, .bottom = border_width },
-        },
-    })({
-        const text_color = ClayKit_ButtonTextColor(ctx, cfg);
-        zclay.text(text, .{
-            .font_size = font_size,
-            .font_id = ctx.theme().font_id.body,
-            .color = .{ text_color.r, text_color.g, text_color.b, text_color.a },
-        });
-    });
-
-    return hovered;
+    _ = id; // ID is currently unused in C implementation
+    return ClayKit_Button(ctx, text.ptr, @intCast(text.len), cfg);
 }
 
 /// Get input horizontal padding
@@ -1083,242 +1039,24 @@ pub fn computeInputStyle(ctx: *Context, cfg: InputConfig, focused: bool) InputSt
     return ClayKit_ComputeInputStyle(ctx, cfg, focused);
 }
 
-/// Render a full text input with cursor and selection
-/// Returns whether the input was clicked (useful for setting focus)
+/// Render a full text input with cursor and selection (calls C implementation)
+/// Returns whether the input was hovered (useful for click detection to set focus)
 pub fn textInput(ctx: *Context, id: []const u8, state: *InputState, cfg: InputConfig, placeholder: []const u8) bool {
-    const focused = state.isFocused();
-    const style = ClayKit_ComputeInputStyle(ctx, cfg, focused);
-
-    // Determine if cursor should be visible (blink every 0.5s)
-    const show_cursor = focused and (@mod(ctx.cursor_blink_time, 1.0) < 0.5);
-
-    // Get text to display
-    const display_text = state.text();
-    const has_text = display_text.len > 0;
-
-    var clicked: bool = false;
-
-    // Outer container
-    zclay.UI()(.{
-        .id = zclay.ElementId.ID(id),
-        .layout = .{
-            .sizing = .{
-                .w = if (cfg.width > 0) zclay.SizingAxis.fixed(@floatFromInt(cfg.width)) else .grow,
-                .h = .fit,
-            },
-            .padding = .{
-                .left = style.padding_x,
-                .right = style.padding_x,
-                .top = style.padding_y,
-                .bottom = style.padding_y,
-            },
-        },
-        .background_color = .{ style.bg_color.r, style.bg_color.g, style.bg_color.b, style.bg_color.a },
-        .corner_radius = zclay.CornerRadius.all(@floatFromInt(style.corner_radius)),
-        .border = .{
-            .color = .{ style.border_color.r, style.border_color.g, style.border_color.b, style.border_color.a },
-            .width = .{ .left = 1, .right = 1, .top = 1, .bottom = 1 },
-        },
-    })({
-        clicked = zclay.hovered();
-
-        // Inner content - horizontal layout with text parts and cursor
-        zclay.UI()(.{
-            .layout = .{
-                .sizing = .{ .w = .grow, .h = .fit },
-                .direction = .left_to_right,
-                .child_alignment = .{ .y = .center },
-            },
-        })({
-            const cursor_pos = @min(state.cursor, display_text.len);
-
-            // Cursor color - visible when blinking on, transparent when off
-            const cursor_alpha: f32 = if (show_cursor) style.cursor_color.a else 0;
-
-            if (has_text) {
-                // Text before cursor
-                if (cursor_pos > 0) {
-                    const text_before = display_text[0..cursor_pos];
-                    zclay.text(text_before, .{
-                        .font_size = style.font_size,
-                        .font_id = style.font_id,
-                        .color = .{
-                            style.text_color.r,
-                            style.text_color.g,
-                            style.text_color.b,
-                            style.text_color.a,
-                        },
-                    });
-                }
-
-                // Cursor (always rendered to reserve space, alpha controls visibility)
-                if (focused) {
-                    zclay.UI()(.{
-                        .layout = .{
-                            .sizing = .{
-                                .w = zclay.SizingAxis.fixed(@floatFromInt(style.cursor_width)),
-                                .h = zclay.SizingAxis.fixed(@floatFromInt(style.font_size)),
-                            },
-                        },
-                        .background_color = .{
-                            style.cursor_color.r,
-                            style.cursor_color.g,
-                            style.cursor_color.b,
-                            cursor_alpha,
-                        },
-                    })({});
-                }
-
-                // Text after cursor
-                if (cursor_pos < display_text.len) {
-                    const text_after = display_text[cursor_pos..];
-                    zclay.text(text_after, .{
-                        .font_size = style.font_size,
-                        .font_id = style.font_id,
-                        .color = .{
-                            style.text_color.r,
-                            style.text_color.g,
-                            style.text_color.b,
-                            style.text_color.a,
-                        },
-                    });
-                }
-            } else {
-                // No text - show cursor (if focused) or placeholder
-                if (focused) {
-                    zclay.UI()(.{
-                        .layout = .{
-                            .sizing = .{
-                                .w = zclay.SizingAxis.fixed(@floatFromInt(style.cursor_width)),
-                                .h = zclay.SizingAxis.fixed(@floatFromInt(style.font_size)),
-                            },
-                        },
-                        .background_color = .{
-                            style.cursor_color.r,
-                            style.cursor_color.g,
-                            style.cursor_color.b,
-                            cursor_alpha,
-                        },
-                    })({});
-                } else if (placeholder.len > 0) {
-                    zclay.text(placeholder, .{
-                        .font_size = style.font_size,
-                        .font_id = style.font_id,
-                        .color = .{
-                            style.placeholder_color.r,
-                            style.placeholder_color.g,
-                            style.placeholder_color.b,
-                            style.placeholder_color.a,
-                        },
-                    });
-                }
-            }
-        });
-    });
-
-    return clicked;
+    return ClayKit_TextInput(ctx, id.ptr, @intCast(id.len), state, cfg, placeholder.ptr, @intCast(placeholder.len));
 }
 
-/// Render a checkbox
-/// Returns whether the checkbox was clicked (to toggle state)
+/// Render a checkbox (calls C implementation)
+/// Returns whether the checkbox was hovered (to toggle state on click)
 pub fn checkbox(ctx: *Context, id: []const u8, checked: bool, cfg: CheckboxConfig) bool {
-    const size = ClayKit_CheckboxSize(ctx, cfg.size);
-    const theme = ctx.theme();
-    var clicked: bool = false;
-
-    zclay.UI()(.{
-        .id = zclay.ElementId.ID(id),
-        .layout = .{
-            .sizing = .{
-                .w = zclay.SizingAxis.fixed(@floatFromInt(size)),
-                .h = zclay.SizingAxis.fixed(@floatFromInt(size)),
-            },
-            .child_alignment = .{ .x = .center, .y = .center },
-        },
-        .background_color = blk: {
-            const hovered = zclay.hovered();
-            clicked = hovered;
-            const bg = ClayKit_CheckboxBgColor(ctx, cfg, checked, hovered);
-            break :blk .{ bg.r, bg.g, bg.b, bg.a };
-        },
-        .corner_radius = zclay.CornerRadius.all(@floatFromInt(theme.radius.sm)),
-        .border = blk: {
-            const bc = ClayKit_CheckboxBorderColor(ctx, cfg, checked);
-            break :blk .{
-                .color = .{ bc.r, bc.g, bc.b, bc.a },
-                .width = .{ .left = 2, .right = 2, .top = 2, .bottom = 2 },
-            };
-        },
-    })({
-        // Draw checkmark when checked
-        if (checked) {
-            // Simple inner square as checkmark indicator
-            const inner_size = size - 8;
-            zclay.UI()(.{
-                .layout = .{
-                    .sizing = .{
-                        .w = zclay.SizingAxis.fixed(@floatFromInt(inner_size)),
-                        .h = zclay.SizingAxis.fixed(@floatFromInt(inner_size)),
-                    },
-                },
-                .background_color = .{ 255, 255, 255, 255 },
-                .corner_radius = zclay.CornerRadius.all(2),
-            })({});
-        }
-    });
-
-    return clicked;
+    _ = id; // ID is currently unused in C implementation
+    return ClayKit_Checkbox(ctx, checked, cfg);
 }
 
-/// Render a switch (toggle)
-/// Returns whether the switch was clicked (to toggle state)
+/// Render a switch (toggle) (calls C implementation)
+/// Returns whether the switch was hovered (to toggle state on click)
 pub fn switch_(ctx: *Context, id: []const u8, on: bool, cfg: SwitchConfig) bool {
-    const width = ClayKit_SwitchWidth(ctx, cfg.size);
-    const height = ClayKit_SwitchHeight(ctx, cfg.size);
-    const knob_size = ClayKit_SwitchKnobSize(ctx, cfg.size);
-    const padding: u16 = (height - knob_size) / 2;
-    var clicked: bool = false;
-
-    zclay.UI()(.{
-        .id = zclay.ElementId.ID(id),
-        .layout = .{
-            .sizing = .{
-                .w = zclay.SizingAxis.fixed(@floatFromInt(width)),
-                .h = zclay.SizingAxis.fixed(@floatFromInt(height)),
-            },
-            .padding = .{
-                .left = padding,
-                .right = padding,
-                .top = padding,
-                .bottom = padding,
-            },
-            .child_alignment = .{
-                .x = if (on) .right else .left,
-                .y = .center,
-            },
-        },
-        .background_color = blk: {
-            const hovered = zclay.hovered();
-            clicked = hovered;
-            const bg = ClayKit_SwitchBgColor(ctx, cfg, on, hovered);
-            break :blk .{ bg.r, bg.g, bg.b, bg.a };
-        },
-        .corner_radius = zclay.CornerRadius.all(@floatFromInt(height / 2)),
-    })({
-        // Knob
-        zclay.UI()(.{
-            .layout = .{
-                .sizing = .{
-                    .w = zclay.SizingAxis.fixed(@floatFromInt(knob_size)),
-                    .h = zclay.SizingAxis.fixed(@floatFromInt(knob_size)),
-                },
-            },
-            .background_color = .{ 255, 255, 255, 255 },
-            .corner_radius = zclay.CornerRadius.all(@floatFromInt(knob_size / 2)),
-        })({});
-    });
-
-    return clicked;
+    _ = id; // ID is currently unused in C implementation
+    return ClayKit_Switch(ctx, on, cfg);
 }
 
 /// Compute progress style (for custom rendering)
@@ -1326,35 +1064,11 @@ pub fn computeProgressStyle(ctx: *Context, cfg: ProgressConfig) ProgressStyle {
     return ClayKit_ComputeProgressStyle(ctx, cfg);
 }
 
-/// Render a progress bar
+/// Render a progress bar (calls C implementation)
 /// value should be between 0.0 and 1.0
 pub fn progress(ctx: *Context, id: []const u8, value: f32, cfg: ProgressConfig) void {
-    const style = ClayKit_ComputeProgressStyle(ctx, cfg);
-    const clamped_value = @max(0.0, @min(1.0, value));
-
-    // Outer track container
-    zclay.UI()(.{
-        .id = zclay.ElementId.ID(id),
-        .layout = .{
-            .sizing = .{ .w = .grow, .h = zclay.SizingAxis.fixed(@floatFromInt(style.height)) },
-        },
-        .background_color = .{ style.track_color.r, style.track_color.g, style.track_color.b, style.track_color.a },
-        .corner_radius = zclay.CornerRadius.all(@floatFromInt(style.corner_radius)),
-    })({
-        // Filled portion
-        if (clamped_value > 0) {
-            zclay.UI()(.{
-                .layout = .{
-                    .sizing = .{
-                        .w = zclay.SizingAxis.percent(clamped_value),
-                        .h = .grow,
-                    },
-                },
-                .background_color = .{ style.fill_color.r, style.fill_color.g, style.fill_color.b, style.fill_color.a },
-                .corner_radius = zclay.CornerRadius.all(@floatFromInt(style.corner_radius)),
-            })({});
-        }
-    });
+    _ = id; // ID is currently unused in C implementation
+    ClayKit_Progress(ctx, value, cfg);
 }
 
 /// Compute slider style (for custom rendering)
@@ -1362,59 +1076,12 @@ pub fn computeSliderStyle(ctx: *Context, cfg: SliderConfig, hovered: bool) Slide
     return ClayKit_ComputeSliderStyle(ctx, cfg, hovered);
 }
 
-/// Render a slider
-/// Returns whether the slider was clicked (for drag handling)
+/// Render a slider (calls C implementation)
+/// Returns whether the slider was hovered (for drag handling)
 /// value should be between cfg.min and cfg.max
 pub fn slider(ctx: *Context, id: []const u8, value: f32, cfg: SliderConfig) bool {
-    const min_val = if (cfg.min == 0 and cfg.max == 0) 0.0 else cfg.min;
-    const max_val = if (cfg.min == 0 and cfg.max == 0) 1.0 else cfg.max;
-    const range = max_val - min_val;
-    const normalized = if (range > 0) (value - min_val) / range else 0;
-    const clamped = @max(0.0, @min(1.0, normalized));
-
-    var clicked: bool = false;
-
-    // Get style with hover state computed inside
-    zclay.UI()(.{
-        .id = zclay.ElementId.ID(id),
-        .layout = .{
-            .sizing = .{ .w = .grow, .h = .fit },
-            .child_alignment = .{ .y = .center },
-        },
-    })({
-        const hovered = zclay.hovered();
-        clicked = hovered;
-        const style = ClayKit_ComputeSliderStyle(ctx, cfg, hovered);
-
-        // Track background
-        zclay.UI()(.{
-            .layout = .{
-                .sizing = .{ .w = .grow, .h = zclay.SizingAxis.fixed(@floatFromInt(style.track_height)) },
-            },
-            .background_color = .{ style.track_color.r, style.track_color.g, style.track_color.b, style.track_color.a },
-            .corner_radius = zclay.CornerRadius.all(@floatFromInt(style.corner_radius)),
-        })({
-            // Filled portion
-            if (clamped > 0) {
-                zclay.UI()(.{
-                    .layout = .{
-                        .sizing = .{
-                            .w = zclay.SizingAxis.percent(clamped),
-                            .h = .grow,
-                        },
-                    },
-                    .background_color = .{ style.fill_color.r, style.fill_color.g, style.fill_color.b, style.fill_color.a },
-                    .corner_radius = zclay.CornerRadius.all(@floatFromInt(style.corner_radius)),
-                })({});
-            }
-        });
-
-        // Thumb (positioned absolutely would be ideal, but we'll use a simple approach)
-        // Note: For a proper slider, you'd want to position the thumb based on value
-        // This is a simplified version that shows the concept
-    });
-
-    return clicked;
+    _ = id; // ID is currently unused in C implementation
+    return ClayKit_Slider(ctx, value, cfg);
 }
 
 /// Compute alert style (for custom rendering)
@@ -1469,31 +1136,10 @@ pub fn alert(ctx: *Context, id: []const u8, cfg: AlertConfig, content: fn () voi
     });
 }
 
-/// Simpler alert that just takes text
+/// Simpler alert that just takes text (calls C implementation)
 pub fn alertText(ctx: *Context, id: []const u8, text: []const u8, cfg: AlertConfig) void {
-    const style = ClayKit_ComputeAlertStyle(ctx, cfg);
-
-    zclay.UI()(.{
-        .id = zclay.ElementId.ID(id),
-        .layout = .{
-            .sizing = .{ .w = .grow, .h = .fit },
-            .padding = zclay.Padding.all(style.padding),
-            .child_gap = 12,
-            .direction = .left_to_right,
-            .child_alignment = .{ .y = .center },
-        },
-        .background_color = .{ style.bg_color.r, style.bg_color.g, style.bg_color.b, style.bg_color.a },
-        .corner_radius = zclay.CornerRadius.all(@floatFromInt(style.corner_radius)),
-        .border = .{
-            .color = .{ style.border_color.r, style.border_color.g, style.border_color.b, style.border_color.a },
-            .width = .{ .left = style.border_width, .right = style.border_width, .top = style.border_width, .bottom = style.border_width },
-        },
-    })({
-        zclay.text(text, .{
-            .font_size = ctx.theme().font_size.md,
-            .color = .{ style.text_color.r, style.text_color.g, style.text_color.b, style.text_color.a },
-        });
-    });
+    _ = id; // ID is currently unused in C implementation
+    ClayKit_AlertText(ctx, text.ptr, @intCast(text.len), cfg);
 }
 
 /// Compute tooltip style (for custom rendering)
@@ -1501,27 +1147,12 @@ pub fn computeTooltipStyle(ctx: *Context, cfg: TooltipConfig) TooltipStyle {
     return ClayKit_ComputeTooltipStyle(ctx, cfg);
 }
 
-/// Render a tooltip
+/// Render a tooltip (calls C implementation)
 /// Note: Positioning relative to anchor requires floating elements which Clay supports
 /// This is a simplified version that just renders the tooltip content
 pub fn tooltip(ctx: *Context, id: []const u8, text: []const u8, cfg: TooltipConfig) void {
-    const style = ClayKit_ComputeTooltipStyle(ctx, cfg);
-    // Note: cfg.position would be used for floating placement in a full implementation
-
-    zclay.UI()(.{
-        .id = zclay.ElementId.ID(id),
-        .layout = .{
-            .sizing = .{ .w = .fit, .h = .fit },
-            .padding = .{ .left = style.padding_x, .right = style.padding_x, .top = style.padding_y, .bottom = style.padding_y },
-        },
-        .background_color = .{ style.bg_color.r, style.bg_color.g, style.bg_color.b, style.bg_color.a },
-        .corner_radius = zclay.CornerRadius.all(@floatFromInt(style.corner_radius)),
-    })({
-        zclay.text(text, .{
-            .font_size = style.font_size,
-            .color = .{ style.text_color.r, style.text_color.g, style.text_color.b, style.text_color.a },
-        });
-    });
+    _ = id; // ID is currently unused in C implementation
+    ClayKit_Tooltip(ctx, text.ptr, @intCast(text.len), cfg);
 }
 
 /// Compute tabs style (for custom rendering)
@@ -1529,13 +1160,20 @@ pub fn computeTabsStyle(ctx: *Context, cfg: TabsConfig) TabsStyle {
     return ClayKit_ComputeTabsStyle(ctx, cfg);
 }
 
+/// Render a single tab (calls C implementation)
+/// Returns whether the tab was hovered
+pub fn tab(ctx: *Context, label: []const u8, is_active: bool, cfg: TabsConfig) bool {
+    return ClayKit_Tab(ctx, label.ptr, @intCast(label.len), is_active, cfg);
+}
+
 /// Render a tab bar and return which tab was clicked (or null if none)
 /// active_index is the currently active tab (0-indexed)
+/// Note: This function still uses zclay for the outer container, with C for individual tabs
 pub fn tabs(ctx: *Context, id: []const u8, labels: []const []const u8, active_index: usize, cfg: TabsConfig) ?usize {
     const style = ClayKit_ComputeTabsStyle(ctx, cfg);
     var clicked_tab: ?usize = null;
 
-    // Tab bar container
+    // Tab bar container (using zclay for the outer container as it requires iteration)
     zclay.UI()(.{
         .id = zclay.ElementId.ID(id),
         .layout = .{
@@ -1547,7 +1185,7 @@ pub fn tabs(ctx: *Context, id: []const u8, labels: []const []const u8, active_in
     })({
         for (labels, 0..) |label, i| {
             const is_active = i == active_index;
-            const is_hovered = renderTab(ctx, id, label, i, is_active, style, cfg.variant);
+            const is_hovered = ClayKit_Tab(ctx, label.ptr, @intCast(label.len), is_active, cfg);
             if (is_hovered) {
                 clicked_tab = i;
             }
@@ -1555,65 +1193,6 @@ pub fn tabs(ctx: *Context, id: []const u8, labels: []const []const u8, active_in
     });
 
     return clicked_tab;
-}
-
-/// Internal: render a single tab
-fn renderTab(ctx: *Context, parent_id: []const u8, label: []const u8, index: usize, is_active: bool, style: TabsStyle, variant: TabsVariant) bool {
-    _ = parent_id;
-    var was_clicked = false;
-
-    // Determine colors based on active state
-    const text_color = if (is_active) style.active_text else style.inactive_color;
-    const bg_color = switch (variant) {
-        .line => Color{ .r = 0, .g = 0, .b = 0, .a = 0 },
-        .enclosed, .soft => if (is_active) style.active_color else Color{ .r = 0, .g = 0, .b = 0, .a = 0 },
-    };
-
-    // Tab container
-    zclay.UI()(.{
-        .id = zclay.ElementId.IDI("tab", @intCast(index)),
-        .layout = .{
-            .sizing = .{ .w = .fit, .h = .fit },
-            .padding = .{
-                .left = style.padding_x,
-                .right = style.padding_x,
-                .top = style.padding_y,
-                .bottom = style.padding_y,
-            },
-            .direction = .top_to_bottom,
-        },
-        .background_color = .{ bg_color.r, bg_color.g, bg_color.b, bg_color.a },
-        .corner_radius = if (variant != .line) zclay.CornerRadius.all(@floatFromInt(style.corner_radius)) else .{},
-    })({
-        was_clicked = zclay.hovered();
-
-        // Tab label
-        zclay.text(label, .{
-            .font_size = style.font_size,
-            .font_id = ctx.theme().font_id.body,
-            .color = .{ text_color.r, text_color.g, text_color.b, text_color.a },
-        });
-
-        // Underline indicator for line variant
-        if (variant == .line and is_active) {
-            zclay.UI()(.{
-                .layout = .{
-                    .sizing = .{
-                        .w = .grow,
-                        .h = zclay.SizingAxis.fixed(@floatFromInt(style.indicator_height)),
-                    },
-                },
-                .background_color = .{
-                    style.active_color.r,
-                    style.active_color.g,
-                    style.active_color.b,
-                    style.active_color.a,
-                },
-            })({});
-        }
-    });
-
-    return was_clicked;
 }
 
 // ============================================================================
@@ -1632,11 +1211,14 @@ pub fn modal(ctx: *Context, id: []const u8, is_open: bool, cfg: ModalConfig, con
     if (!is_open) return false;
 
     const style = ClayKit_ComputeModalStyle(ctx, cfg);
-    var backdrop_clicked = false;
+
+    // Create element IDs for backdrop and modal
+    const backdrop_id = zclay.ElementId.IDI(id, 0);
+    const modal_id = zclay.ElementId.ID(id);
 
     // Backdrop - full screen overlay attached to root
     zclay.UI()(.{
-        .id = zclay.ElementId.IDI(id, 0), // backdrop
+        .id = backdrop_id,
         .layout = .{
             .sizing = .{ .w = .grow, .h = .grow },
             .child_alignment = .{ .x = .center, .y = .center },
@@ -1653,9 +1235,6 @@ pub fn modal(ctx: *Context, id: []const u8, is_open: bool, cfg: ModalConfig, con
             .pointer_capture_mode = .capture,
         },
     })({
-        // Check if backdrop itself was clicked (not the modal content)
-        backdrop_clicked = zclay.hovered() and cfg.close_on_backdrop;
-
         // Modal container
         const modal_width: zclay.SizingAxis = if (style.width > 0)
             zclay.SizingAxis.fixed(@floatFromInt(style.width))
@@ -1663,7 +1242,7 @@ pub fn modal(ctx: *Context, id: []const u8, is_open: bool, cfg: ModalConfig, con
             zclay.SizingAxis.growMinMax(.{ .min = 100, .max = 10000 });
 
         zclay.UI()(.{
-            .id = zclay.ElementId.ID(id),
+            .id = modal_id,
             .layout = .{
                 .sizing = .{ .w = modal_width, .h = .fit },
                 .padding = zclay.Padding.all(style.padding),
@@ -1687,17 +1266,17 @@ pub fn modal(ctx: *Context, id: []const u8, is_open: bool, cfg: ModalConfig, con
                 .width = zclay.BorderWidth.all(1),
             },
         })({
-            // If hovering modal content, don't close on backdrop click
-            if (zclay.hovered()) {
-                backdrop_clicked = false;
-            }
-
             // Render user content
             content();
         });
     });
 
-    return backdrop_clicked;
+    // Check if backdrop was clicked (pointer is over backdrop but NOT over modal)
+    // Use pointerOver which checks specific element IDs in the hover chain
+    const backdrop_hovered = zclay.pointerOver(backdrop_id);
+    const modal_hovered = zclay.pointerOver(modal_id);
+
+    return cfg.close_on_backdrop and backdrop_hovered and !modal_hovered;
 }
 
 // ============================================================================
