@@ -51,20 +51,25 @@ ALL_CFLAGS = $(CFLAGS) $(PLATFORM_CFLAGS)
 TARGET = claykit-demo-c
 SRC = main.c
 
+# Marker file to track raylib download
+RAYLIB_MARKER = $(RAYLIB_DIR)/.downloaded
+
 .PHONY: all clean run resources setup distclean
 
 all: $(TARGET)
 
 # Download raylib if not present
-$(RAYLIB_DIR):
+$(RAYLIB_MARKER):
 	@echo "Downloading raylib..."
+	@mkdir -p ../../vendor
 	git clone --depth 1 https://github.com/raysan5/raylib.git $(RAYLIB_DIR)
 	@rm -rf $(RAYLIB_DIR)/.git
+	@touch $(RAYLIB_MARKER)
 
-setup: $(RAYLIB_DIR)
+setup: $(RAYLIB_MARKER)
 
 # Build raylib as a static library first
-libraylib.a: $(RAYLIB_DIR) $(RAYLIB_SRCS)
+libraylib.a: $(RAYLIB_MARKER)
 	@echo "Building raylib..."
 	$(CC) $(ALL_CFLAGS) $(RAYLIB_INCLUDES) -c $(RAYLIB_SRCS)
 	ar rcs $@ *.o
