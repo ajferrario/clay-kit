@@ -1,22 +1,39 @@
-# clay-kit
+# ClayKit
 
 Zero-allocation UI components for [Clay](https://github.com/nicbarker/clay).
 
-## What
+## What is ClayKit?
 
-Single-header C99 library providing ChakraUI-style components (buttons, inputs, checkboxes, modals, etc.) built on Clay's layout primitives. Exports clean Zig bindings via `@cImport`.
+A single-header C99 library providing ready-to-use UI components built on Clay's layout system. Includes hand-written Zig bindings for seamless integration.
 
 ## Features
 
-- Zero heap allocation - you provide all memory
-- Single header `clay_kit.h`
-- C99 compatible
-- Zig-friendly (no bitfields, no VLAs, no complex macros)
-- Theming system with light/dark presets
-- Focus management for keyboard navigation
-- Text input with cursor/selection handling
+- **Zero heap allocation** - You provide all memory
+- **Single header** - Just include `clay_kit.h`
+- **Pure C99** - Maximum portability
+- **Zig bindings** - Hand-written ergonomic API (not `@cImport`)
+- **Theming** - Light/dark presets or custom themes
+- **Complete text input** - Cursor, selection, keyboard handling
 
-## Usage
+## Components
+
+| Component | Description |
+|-----------|-------------|
+| **Badge** | Status labels with solid/subtle/outline variants |
+| **Button** | Interactive buttons with hover states |
+| **Progress** | Progress bars with color schemes |
+| **Slider** | Horizontal value sliders |
+| **Alert** | Notification boxes |
+| **Tooltip** | Text hints |
+| **Tabs** | Tab navigation (line and enclosed variants) |
+| **Modal** | Dialog overlays with backdrop |
+| **Checkbox** | Checkable boxes |
+| **Switch** | Toggle switches |
+| **Text Input** | Full text editing with cursor positioning |
+
+## Quick Start
+
+### C
 
 ```c
 #define CLAY_IMPLEMENTATION
@@ -25,69 +42,160 @@ Single-header C99 library providing ChakraUI-style components (buttons, inputs, 
 #define CLAYKIT_IMPLEMENTATION
 #include "clay_kit.h"
 
-// Setup
+// Initialize
 ClayKit_Theme theme = CLAYKIT_THEME_LIGHT;
-ClayKit_State state_buf[256];
-ClayKit_Context ctx;
-ClayKit_Init(&ctx, &theme, state_buf, 256);
+ClayKit_State states[64] = {0};
+ClayKit_Context ctx = {0};
+ClayKit_Init(&ctx, &theme, states, 64);
 
-// In your layout
-CLAYKIT_BUTTON(&ctx, CLAY_ID("submit"), {
-    .variant = CLAYKIT_BUTTON_SOLID,
-    .size = CLAYKIT_SIZE_MD,
-}) {
-    CLAY_TEXT(CLAY_STRING("Submit"), &ctx.theme->button_text);
+// In your render loop
+Clay_BeginLayout();
+
+ClayKit_BadgeRaw(&ctx, "New", 3, (ClayKit_BadgeConfig){
+    .color_scheme = CLAYKIT_COLOR_SUCCESS
+});
+
+if (ClayKit_Button(&ctx, "Click Me", 8, (ClayKit_ButtonConfig){0})) {
+    // Button is hovered
 }
+
+ClayKit_Progress(&ctx, 0.75f, (ClayKit_ProgressConfig){0});
+
+Clay_RenderCommandArray commands = Clay_EndLayout();
+// Render commands with your backend...
+```
+
+### Zig
+
+```zig
+const claykit = @import("claykit");
+
+var theme = claykit.Theme.light;
+var states: [64]claykit.State = undefined;
+var ctx: claykit.Context = .{};
+claykit.init(&ctx, &theme, &states);
+
+// In render loop
+zclay.beginLayout();
+
+claykit.badge(&ctx, "New", .{ .color_scheme = .success });
+
+if (claykit.button(&ctx, "btn1", "Click Me", .{})) {
+    if (raylib.isMouseButtonPressed(.left)) {
+        // Clicked!
+    }
+}
+
+claykit.progress(&ctx, "prog1", 0.75, .{});
+
+const commands = zclay.endLayout();
 ```
 
 ## Building
 
-### C Example
+### C Raylib Example
 
 ```bash
-gcc -std=c99 -Wall -Wextra -pedantic -I. -Ivendor examples/test_compile.c -o test_compile
-./test_compile
+cd examples/c-raylib
+make run
 ```
 
-### Tests
-
-```bash
-gcc -std=c99 -Wall -Wextra -I. -Ivendor tests/test_clay_kit.c -o tests/test_clay_kit -lm
-./tests/test_clay_kit
-```
-
-### Zig + Raylib Demo
+### Zig Raylib Example
 
 ```bash
 cd examples/zig-raylib
 zig build run
 ```
 
-### Verify Zig Compatibility
+### Run Tests
 
 ```bash
-zig translate-c clay_kit.h -Ivendor
+cd tests
+gcc -std=c99 -Wall -I.. -I../vendor -o test_clay_kit test_clay_kit.c
+./test_clay_kit
 ```
 
-## Zig
+## Documentation
 
-```zig
-const clay = @cImport(@cInclude("clay.h"));
-const kit = @cImport(@cInclude("clay_kit.h"));
+- **[Quick Start Guide](docs/QUICKSTART.md)** - Get running in 5 minutes
+- **[API Reference](docs/API.md)** - Complete function documentation
+- **[Architecture](docs/ARCHITECTURE.md)** - Internal design and patterns
+
+## Theming
+
+```c
+// Preset themes
+ClayKit_Theme theme = CLAYKIT_THEME_LIGHT;
+ClayKit_Theme theme = CLAYKIT_THEME_DARK;
+
+// Or customize
+ClayKit_Theme my_theme = {
+    .primary = { 0, 122, 255, 255 },
+    .success = { 52, 199, 89, 255 },
+    // ... see docs for full structure
+};
 ```
 
-## Components
+## Text Input
 
-**Layout**: Box, Flex, Stack, Center, Container, Grid, Spacer
+ClayKit provides complete text input handling:
 
-**Typography**: Text, Heading, Badge, Tag, List
+```c
+char buffer[256] = {0};
+ClayKit_InputState input = {
+    .buf = buffer,
+    .cap = sizeof(buffer),
+};
 
-**Form**: Button, Input, Textarea, Checkbox, Switch, Slider, Select, Radio
+// Handle keyboard
+if (input.flags & CLAYKIT_INPUT_FOCUSED) {
+    if (IsKeyPressed(KEY_BACKSPACE))
+        ClayKit_InputHandleKey(&input, CLAYKIT_KEY_BACKSPACE, 0);
 
-**Feedback**: Alert, Progress, Spinner, Tooltip, Modal, Drawer
+    int ch = GetCharPressed();
+    while (ch) {
+        ClayKit_InputHandleChar(&input, ch);
+        ch = GetCharPressed();
+    }
+}
 
-**Navigation**: Tabs, Accordion, Breadcrumb, Menu, Link
+// Render
+bool hovered = ClayKit_TextInput(&ctx, "input1", 6, &input,
+    (ClayKit_InputConfig){0}, "Placeholder...", 14);
+
+// Focus on click
+if (hovered && IsMouseClicked())
+    input.flags |= CLAYKIT_INPUT_FOCUSED;
+```
+
+## Project Structure
+
+```
+clay-kit/
+├── clay_kit.h          # C library (include this)
+├── clay_kit.zig        # Zig bindings
+├── vendor/
+│   ├── clay.h          # Clay UI library
+│   └── raylib/         # Raylib (for examples)
+├── examples/
+│   ├── c-raylib/       # C + Raylib demo
+│   └── zig-raylib/     # Zig + Raylib demo
+├── tests/
+│   └── test_clay_kit.c # Unit tests (82 tests)
+└── docs/               # Documentation
+```
+
+## Requirements
+
+- C99 compiler (gcc, clang, MSVC)
+- Clay UI library (included in `vendor/`)
+- For examples: Raylib (included in `vendor/`)
 
 ## License
 
 MIT
+
+## Credits
+
+- [Clay](https://github.com/nicbarker/clay) by Nic Barker - The underlying layout library
+- [Raylib](https://github.com/raysan5/raylib) by Ramon Santamaria - Used in examples

@@ -1,11 +1,59 @@
-/*
- * clay_kit.h - Zero-allocation UI components for Clay
- * Single-header C99, Zig-compatible
+/**
+ * @file clay_kit.h
+ * @brief Zero-allocation UI components for Clay
+ * @version 1.0.0
  *
- * Usage:
- *   #define CLAYKIT_IMPLEMENTATION
- *   #include "clay_kit.h"
+ * ClayKit is a single-header C99 library providing ready-to-use UI components
+ * built on the Clay layout system. It features:
  *
+ * - Zero heap allocation (you provide all memory)
+ * - Complete theming with light/dark presets
+ * - Text input with cursor positioning and selection
+ * - Hand-written Zig bindings available
+ *
+ * ## Quick Start
+ *
+ * ```c
+ * // In ONE source file:
+ * #define CLAY_IMPLEMENTATION
+ * #include "clay.h"
+ * #define CLAYKIT_IMPLEMENTATION
+ * #include "clay_kit.h"
+ *
+ * // Initialize
+ * ClayKit_Theme theme = CLAYKIT_THEME_LIGHT;
+ * ClayKit_State states[64] = {0};
+ * ClayKit_Context ctx = {0};
+ * ClayKit_Init(&ctx, &theme, states, 64);
+ *
+ * // In render loop
+ * Clay_BeginLayout();
+ * ClayKit_Button(&ctx, "Click", 5, (ClayKit_ButtonConfig){0});
+ * Clay_RenderCommandArray cmds = Clay_EndLayout();
+ * ```
+ *
+ * ## Components
+ *
+ * - Badge: Status labels (solid/subtle/outline variants)
+ * - Button: Interactive buttons with hover states
+ * - Progress: Progress bars
+ * - Slider: Value sliders
+ * - Alert: Notification boxes
+ * - Tooltip: Text hints
+ * - Tabs: Tab navigation (line/enclosed variants)
+ * - Modal: Dialog overlays
+ * - Checkbox: Checkable boxes
+ * - Switch: Toggle switches
+ * - TextInput: Full text editing with cursor
+ *
+ * ## Documentation
+ *
+ * See docs/API.md for complete API reference.
+ * See docs/QUICKSTART.md for getting started guide.
+ *
+ * ## License
+ *
+ * MIT License - see repository for details.
  */
 
 #ifndef CLAY_KIT_H
