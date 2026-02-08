@@ -175,8 +175,7 @@ clay-kit/
 ├── clay_kit.h          # C library (include this)
 ├── clay_kit.zig        # Zig bindings
 ├── vendor/
-│   ├── clay.h          # Clay UI library
-│   └── raylib/         # Raylib (for examples)
+│   └── clay.h          # Clay UI library
 ├── examples/
 │   ├── c-raylib/       # C + Raylib demo
 │   └── zig-raylib/     # Zig + Raylib demo
@@ -189,7 +188,8 @@ clay-kit/
 
 - C99 compiler (gcc, clang, MSVC)
 - Clay UI library (included in `vendor/`)
-- For examples: Raylib (included in `vendor/`)
+- For C example: git (to download raylib on first build)
+- For Zig example: Zig 0.13+ (raylib downloaded via package manager)
 
 ## License
 

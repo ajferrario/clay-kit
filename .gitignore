@@ -7,6 +7,9 @@ tests/test_clay_kit
 *.so
 *.exe
 
+# Downloaded dependencies (fetched on build)
+vendor/raylib/
+
 # Zig build artifacts
 zig-out/
 zig-cache/

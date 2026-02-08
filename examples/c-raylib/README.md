@@ -2,7 +2,7 @@
 
 This example demonstrates all ClayKit components using pure C with Raylib for rendering.
 
-**No external dependencies required!** Raylib is compiled from source (included in `vendor/src/`).
+**Raylib is downloaded automatically** on first build (via git clone).
 
 ## Build
 

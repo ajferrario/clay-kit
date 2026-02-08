@@ -1,11 +1,11 @@
 # ClayKit C + Raylib Demo Makefile
 #
-# This example compiles raylib from source (included in vendor/src/)
-# No external dependencies needed!
+# This example compiles raylib from source (downloaded automatically)
 #
 # Build:   make
 # Run:     make run
 # Clean:   make clean
+# Reset:   make distclean (removes raylib too)
 
 CC = gcc
 CFLAGS = -std=c99 -Wall -Wextra -Wno-unused-parameter -Wno-missing-field-initializers
@@ -13,8 +13,9 @@ CFLAGS = -std=c99 -Wall -Wextra -Wno-unused-parameter -Wno-missing-field-initial
 # ClayKit and Clay includes
 CLAYKIT_INCLUDES = -I../.. -I../../vendor
 
-# Raylib source directory
-RAYLIB_SRC = ../../vendor/raylib/src
+# Raylib source directory (will be downloaded if missing)
+RAYLIB_DIR = ../../vendor/raylib
+RAYLIB_SRC = $(RAYLIB_DIR)/src
 RAYLIB_INCLUDES = -I$(RAYLIB_SRC) -I$(RAYLIB_SRC)/external/glfw/include
 
 # Raylib source files (latest raylib merged utils.c into rcore.c)
@@ -50,12 +51,20 @@ ALL_CFLAGS = $(CFLAGS) $(PLATFORM_CFLAGS)
 TARGET = claykit-demo-c
 SRC = main.c
 
-.PHONY: all clean run resources
+.PHONY: all clean run resources setup distclean
 
 all: $(TARGET)
 
+# Download raylib if not present
+$(RAYLIB_DIR):
+	@echo "Downloading raylib..."
+	git clone --depth 1 https://github.com/raysan5/raylib.git $(RAYLIB_DIR)
+	@rm -rf $(RAYLIB_DIR)/.git
+
+setup: $(RAYLIB_DIR)
+
 # Build raylib as a static library first
-libraylib.a: $(RAYLIB_SRCS)
+libraylib.a: $(RAYLIB_DIR) $(RAYLIB_SRCS)
 	@echo "Building raylib..."
 	$(CC) $(ALL_CFLAGS) $(RAYLIB_INCLUDES) -c $(RAYLIB_SRCS)
 	ar rcs $@ *.o
@@ -77,3 +86,7 @@ run: $(TARGET) resources
 clean:
 	rm -f $(TARGET) libraylib.a *.o
 	rm -rf resources
+
+# Full clean including raylib
+distclean: clean
+	rm -rf $(RAYLIB_DIR)
