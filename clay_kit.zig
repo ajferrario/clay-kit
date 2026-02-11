@@ -466,6 +466,110 @@ pub const BadgeStyle = extern struct {
 };
 
 // ============================================================================
+// Tag Configuration
+// ============================================================================
+
+pub const TagVariant = enum(c_int) {
+    solid = 0,
+    subtle = 1,
+    outline = 2,
+};
+
+pub const TagConfig = extern struct {
+    color_scheme: ColorScheme = .primary,
+    variant: TagVariant = .solid,
+    size: Size = .md,
+    closeable: bool = false,
+};
+
+pub const TagStyle = extern struct {
+    bg_color: Color,
+    text_color: Color,
+    border_color: Color,
+    close_color: Color,
+    border_width: u16,
+    pad_x: u16,
+    pad_y: u16,
+    font_size: u16,
+    font_id: u16,
+    corner_radius: u16,
+    gap: u16,
+    close_font_size: u16,
+};
+
+// ============================================================================
+// Stat Configuration
+// ============================================================================
+
+pub const StatConfig = extern struct {
+    size: Size = .md,
+    label_color: Color = .{ .r = 0, .g = 0, .b = 0, .a = 0 },
+    value_color: Color = .{ .r = 0, .g = 0, .b = 0, .a = 0 },
+    help_color: Color = .{ .r = 0, .g = 0, .b = 0, .a = 0 },
+};
+
+pub const StatStyle = extern struct {
+    label_color: Color,
+    value_color: Color,
+    help_color: Color,
+    label_font_size: u16,
+    value_font_size: u16,
+    help_font_size: u16,
+    label_font_id: u16,
+    value_font_id: u16,
+    help_font_id: u16,
+    gap: u16,
+};
+
+// ============================================================================
+// List Configuration
+// ============================================================================
+
+pub const ListConfig = extern struct {
+    ordered: bool = false,
+    size: Size = .md,
+    marker_color: Color = .{ .r = 0, .g = 0, .b = 0, .a = 0 },
+    text_color: Color = .{ .r = 0, .g = 0, .b = 0, .a = 0 },
+};
+
+pub const ListStyle = extern struct {
+    marker_color: Color,
+    text_color: Color,
+    font_size: u16,
+    font_id: u16,
+    gap: u16,
+    marker_width: u16,
+    item_gap: u16,
+};
+
+// ============================================================================
+// Table Configuration
+// ============================================================================
+
+pub const TableConfig = extern struct {
+    color_scheme: ColorScheme = .primary,
+    size: Size = .md,
+    striped: bool = false,
+    bordered: bool = false,
+};
+
+pub const TableStyle = extern struct {
+    header_bg: Color,
+    header_text: Color,
+    row_bg: Color,
+    row_alt_bg: Color,
+    text_color: Color,
+    border_color: Color,
+    border_width: u16,
+    cell_pad_x: u16,
+    cell_pad_y: u16,
+    font_size: u16,
+    header_font_size: u16,
+    font_id: u16,
+    corner_radius: u16,
+};
+
+// ============================================================================
 // Button Configuration
 // ============================================================================
 
@@ -499,6 +603,16 @@ pub const ButtonResult = extern struct {
 // ============================================================================
 
 pub const CheckboxConfig = extern struct {
+    color_scheme: ColorScheme = .primary,
+    size: Size = .md,
+    disabled: bool = false,
+};
+
+// ============================================================================
+// Radio Configuration
+// ============================================================================
+
+pub const RadioConfig = extern struct {
     color_scheme: ColorScheme = .primary,
     size: Size = .md,
     disabled: bool = false,
@@ -668,6 +782,207 @@ pub const ModalStyle = extern struct {
 };
 
 // ============================================================================
+// Spinner Configuration
+// ============================================================================
+
+pub const SpinnerConfig = extern struct {
+    color_scheme: ColorScheme = .primary,
+    size: Size = .md,
+    speed: f32 = 0, // 0 = default 1.0 rotations/sec
+};
+
+pub const SpinnerStyle = extern struct {
+    color: Color,
+    track_color: Color,
+    diameter: u16,
+    thickness: u16,
+    speed: f32,
+};
+
+// ============================================================================
+// Drawer Configuration
+// ============================================================================
+
+pub const DrawerSide = enum(c_int) {
+    left = 0,
+    right = 1,
+    top = 2,
+    bottom = 3,
+};
+
+pub const DrawerConfig = extern struct {
+    side: DrawerSide = .left,
+    size: u16 = 0, // 0 = default 300
+    close_on_backdrop: bool = true,
+    z_index: u16 = 0, // 0 = default 1000
+};
+
+pub const DrawerStyle = extern struct {
+    backdrop_color: Color,
+    bg_color: Color,
+    border_color: Color,
+    size: u16,
+    padding: u16,
+    z_index: u16,
+};
+
+// ============================================================================
+// Popover Configuration
+// ============================================================================
+
+pub const PopoverPosition = enum(c_int) {
+    top = 0,
+    bottom = 1,
+    left = 2,
+    right = 3,
+};
+
+pub const PopoverConfig = extern struct {
+    position: PopoverPosition = .bottom,
+    z_index: u16 = 0, // 0 = default 50
+};
+
+pub const PopoverStyle = extern struct {
+    bg_color: Color,
+    border_color: Color,
+    padding: u16,
+    corner_radius: u16,
+    z_index: u16,
+};
+
+// ============================================================================
+// Link Configuration
+// ============================================================================
+
+pub const LinkVariant = enum(c_int) {
+    underline = 0, // Always underlined
+    hover_underline = 1, // Underline on hover only
+    none = 2, // No underline
+};
+
+pub const LinkConfig = extern struct {
+    color_scheme: ColorScheme = .primary,
+    size: Size = .md,
+    variant: LinkVariant = .underline,
+    disabled: bool = false,
+};
+
+pub const LinkStyle = extern struct {
+    text_color: Color,
+    hover_color: Color,
+    disabled_color: Color,
+    font_size: u16,
+    font_id: u16,
+    underline_height: u16,
+};
+
+// ============================================================================
+// Breadcrumb Configuration
+// ============================================================================
+
+pub const BreadcrumbConfig = extern struct {
+    color_scheme: ColorScheme = .primary,
+    size: Size = .md,
+    separator: [*c]const u8 = null,
+    separator_len: i32 = 0,
+};
+
+pub const BreadcrumbStyle = extern struct {
+    link_color: Color,
+    hover_color: Color,
+    current_color: Color,
+    separator_color: Color,
+    font_size: u16,
+    font_id: u16,
+    gap: u16,
+};
+
+// ============================================================================
+// Accordion Configuration
+// ============================================================================
+
+pub const AccordionVariant = enum(c_int) {
+    bordered = 0, // Border between items
+    separated = 1, // Cards with gap
+};
+
+pub const AccordionConfig = extern struct {
+    color_scheme: ColorScheme = .primary,
+    size: Size = .md,
+    variant: AccordionVariant = .bordered,
+};
+
+pub const AccordionStyle = extern struct {
+    header_bg: Color,
+    header_hover_bg: Color,
+    header_text: Color,
+    active_accent: Color,
+    content_bg: Color,
+    border_color: Color,
+    padding_x: u16,
+    padding_y: u16,
+    content_padding: u16,
+    font_size: u16,
+    font_id: u16,
+    border_width: u16,
+    corner_radius: u16,
+    gap: u16,
+};
+
+// ============================================================================
+// Menu Configuration
+// ============================================================================
+
+pub const MenuConfig = extern struct {
+    color_scheme: ColorScheme = .primary,
+    size: Size = .md,
+    disabled: bool = false,
+};
+
+pub const MenuStyle = extern struct {
+    bg_color: Color,
+    border_color: Color,
+    text_color: Color,
+    disabled_text: Color,
+    hover_bg: Color,
+    separator_color: Color,
+    padding_x: u16,
+    padding_y: u16,
+    font_size: u16,
+    font_id: u16,
+    corner_radius: u16,
+    item_gap: u16,
+    separator_height: u16,
+    dropdown_padding: u16,
+};
+
+// ============================================================================
+// Select Configuration
+// ============================================================================
+
+pub const SelectConfig = extern struct {
+    color_scheme: ColorScheme = .primary,
+    size: Size = .md,
+    disabled: bool = false,
+};
+
+pub const SelectStyle = extern struct {
+    bg_color: Color,
+    border_color: Color,
+    text_color: Color,
+    placeholder_color: Color,
+    dropdown_bg: Color,
+    dropdown_border: Color,
+    option_hover_bg: Color,
+    padding_x: u16,
+    padding_y: u16,
+    font_size: u16,
+    font_id: u16,
+    corner_radius: u16,
+    dropdown_gap: u16,
+};
+
+// ============================================================================
 // Input Configuration
 // ============================================================================
 
@@ -731,6 +1046,31 @@ extern fn ClayKit_HeadingStyle(ctx: *Context, cfg: HeadingConfig) zclay.TextElem
 extern fn ClayKit_ComputeBadgeStyle(ctx: *Context, cfg: BadgeConfig) BadgeStyle;
 extern fn ClayKit_BadgeRaw(ctx: *Context, text: [*c]const u8, text_len: i32, cfg: BadgeConfig) void;
 
+// Tag functions
+extern fn ClayKit_ComputeTagStyle(ctx: *Context, cfg: TagConfig) TagStyle;
+extern fn ClayKit_TagRaw(ctx: *Context, text: [*c]const u8, text_len: i32, cfg: TagConfig) void;
+
+// Stat functions
+extern fn ClayKit_ComputeStatStyle(ctx: *Context, cfg: StatConfig) StatStyle;
+extern fn ClayKit_Stat(ctx: *Context, label: [*c]const u8, label_len: i32, value: [*c]const u8, value_len: i32, help_text: [*c]const u8, help_len: i32, cfg: StatConfig) void;
+
+// List functions
+extern fn ClayKit_ComputeListStyle(ctx: *Context, cfg: ListConfig) ListStyle;
+extern fn ClayKit_ListBegin(ctx: *Context, cfg: ListConfig) void;
+extern fn ClayKit_ListItemRaw(ctx: *Context, text: [*c]const u8, text_len: i32, index: u32, cfg: ListConfig) void;
+extern fn ClayKit_ListEnd() void;
+
+// Table functions
+extern fn ClayKit_ComputeTableStyle(ctx: *Context, cfg: TableConfig) TableStyle;
+extern fn ClayKit_TableBegin(ctx: *Context, cfg: TableConfig) void;
+extern fn ClayKit_TableHeaderRow(ctx: *Context, cfg: TableConfig) void;
+extern fn ClayKit_TableRow(ctx: *Context, row_index: u32, cfg: TableConfig) void;
+extern fn ClayKit_TableHeaderCell(ctx: *Context, width_percent: f32, cfg: TableConfig) void;
+extern fn ClayKit_TableCell(ctx: *Context, width_percent: f32, row_index: u32, cfg: TableConfig) void;
+extern fn ClayKit_TableCellEnd() void;
+extern fn ClayKit_TableRowEnd() void;
+extern fn ClayKit_TableEnd() void;
+
 // Button helper functions
 extern fn ClayKit_ButtonBgColor(ctx: *Context, cfg: ButtonConfig, hovered: bool) Color;
 extern fn ClayKit_ButtonTextColor(ctx: *Context, cfg: ButtonConfig) Color;
@@ -755,6 +1095,11 @@ extern fn ClayKit_InputGetCursorFromX(ctx: *Context, text: [*c]const u8, length:
 extern fn ClayKit_CheckboxSize(ctx: *Context, size: Size) u16;
 extern fn ClayKit_CheckboxBgColor(ctx: *Context, cfg: CheckboxConfig, checked: bool, hovered: bool) Color;
 extern fn ClayKit_CheckboxBorderColor(ctx: *Context, cfg: CheckboxConfig, checked: bool) Color;
+
+// Radio helper functions
+extern fn ClayKit_RadioSize(ctx: *Context, size: Size) u16;
+extern fn ClayKit_RadioBgColor(ctx: *Context, cfg: RadioConfig, selected: bool, hovered: bool) Color;
+extern fn ClayKit_RadioBorderColor(ctx: *Context, cfg: RadioConfig, selected: bool) Color;
 
 // Switch helper functions
 extern fn ClayKit_SwitchWidth(ctx: *Context, size: Size) u16;
@@ -783,12 +1128,63 @@ extern fn ClayKit_ComputeTabsStyle(ctx: *Context, cfg: TabsConfig) TabsStyle;
 // Modal helper functions
 extern fn ClayKit_ComputeModalStyle(ctx: *Context, cfg: ModalConfig) ModalStyle;
 
+// Spinner helper functions
+extern fn ClayKit_ComputeSpinnerStyle(ctx: *Context, cfg: SpinnerConfig) SpinnerStyle;
+extern fn ClayKit_SpinnerAngle(ctx: *Context, cfg: SpinnerConfig) f32;
+extern fn ClayKit_Spinner(ctx: *Context, cfg: SpinnerConfig) void;
+
+// Drawer helper functions
+extern fn ClayKit_ComputeDrawerStyle(ctx: *Context, cfg: DrawerConfig) DrawerStyle;
+extern fn ClayKit_DrawerBegin(ctx: *Context, id: [*c]const u8, id_len: i32, cfg: DrawerConfig) bool;
+extern fn ClayKit_DrawerEnd() void;
+
+// Popover helper functions
+extern fn ClayKit_ComputePopoverStyle(ctx: *Context, cfg: PopoverConfig) PopoverStyle;
+extern fn ClayKit_PopoverBegin(ctx: *Context, id: [*c]const u8, id_len: i32, cfg: PopoverConfig) void;
+extern fn ClayKit_PopoverEnd() void;
+
 // Component rendering functions
 extern fn ClayKit_Checkbox(ctx: *Context, checked: bool, cfg: CheckboxConfig) bool;
+extern fn ClayKit_Radio(ctx: *Context, selected: bool, cfg: RadioConfig) bool;
 extern fn ClayKit_Switch(ctx: *Context, on: bool, cfg: SwitchConfig) bool;
 extern fn ClayKit_Slider(ctx: *Context, value: f32, cfg: SliderConfig) bool;
 extern fn ClayKit_Tab(ctx: *Context, label: [*c]const u8, label_len: i32, is_active: bool, cfg: TabsConfig) bool;
 extern fn ClayKit_TextInput(ctx: *Context, id: [*c]const u8, id_len: i32, state: *InputState, cfg: InputConfig, placeholder: [*c]const u8, placeholder_len: i32) bool;
+
+// Select helper functions
+extern fn ClayKit_ComputeSelectStyle(ctx: *Context, cfg: SelectConfig) SelectStyle;
+// Link
+extern fn ClayKit_ComputeLinkStyle(ctx: *Context, cfg: LinkConfig) LinkStyle;
+extern fn ClayKit_Link(ctx: *Context, text: [*c]const u8, text_len: i32, cfg: LinkConfig) bool;
+
+// Breadcrumb
+extern fn ClayKit_ComputeBreadcrumbStyle(ctx: *Context, cfg: BreadcrumbConfig) BreadcrumbStyle;
+extern fn ClayKit_BreadcrumbBegin(ctx: *Context, cfg: BreadcrumbConfig) void;
+extern fn ClayKit_BreadcrumbItem(ctx: *Context, text: [*c]const u8, text_len: i32, is_current: bool, cfg: BreadcrumbConfig) bool;
+extern fn ClayKit_BreadcrumbSeparator(ctx: *Context, cfg: BreadcrumbConfig) void;
+extern fn ClayKit_BreadcrumbEnd() void;
+
+// Accordion
+extern fn ClayKit_ComputeAccordionStyle(ctx: *Context, cfg: AccordionConfig) AccordionStyle;
+extern fn ClayKit_AccordionBegin(ctx: *Context, cfg: AccordionConfig) void;
+extern fn ClayKit_AccordionItemBegin(ctx: *Context, is_open: bool, cfg: AccordionConfig) void;
+extern fn ClayKit_AccordionItemEnd() void;
+extern fn ClayKit_AccordionHeader(ctx: *Context, text: [*c]const u8, text_len: i32, is_open: bool, cfg: AccordionConfig) bool;
+extern fn ClayKit_AccordionContentBegin(ctx: *Context, cfg: AccordionConfig) void;
+extern fn ClayKit_AccordionContentEnd() void;
+extern fn ClayKit_AccordionEnd() void;
+
+// Menu
+extern fn ClayKit_ComputeMenuStyle(ctx: *Context, cfg: MenuConfig) MenuStyle;
+extern fn ClayKit_MenuDropdownBegin(ctx: *Context, id: [*c]const u8, id_len: i32, cfg: MenuConfig) void;
+extern fn ClayKit_MenuItem(ctx: *Context, text: [*c]const u8, text_len: i32, disabled: bool, cfg: MenuConfig) bool;
+extern fn ClayKit_MenuSeparator(ctx: *Context, cfg: MenuConfig) void;
+extern fn ClayKit_MenuDropdownEnd() void;
+
+extern fn ClayKit_SelectTrigger(ctx: *Context, id: [*c]const u8, id_len: i32, display_text: [*c]const u8, display_len: i32, cfg: SelectConfig) bool;
+extern fn ClayKit_SelectDropdownBegin(ctx: *Context, id: [*c]const u8, id_len: i32, cfg: SelectConfig) void;
+extern fn ClayKit_SelectOption(ctx: *Context, text: [*c]const u8, text_len: i32, is_selected: bool, cfg: SelectConfig) bool;
+extern fn ClayKit_SelectDropdownEnd() void;
 
 // Theme presets (extern const)
 extern const CLAYKIT_THEME_LIGHT: Theme;
@@ -923,6 +1319,93 @@ pub fn badge(ctx: *Context, text: []const u8, cfg: BadgeConfig) void {
     ClayKit_BadgeRaw(ctx, text.ptr, @intCast(text.len), cfg);
 }
 
+/// Compute tag style (for custom rendering)
+pub fn computeTagStyle(ctx: *Context, cfg: TagConfig) TagStyle {
+    return ClayKit_ComputeTagStyle(ctx, cfg);
+}
+
+/// Render a tag element (calls C implementation)
+pub fn tag(ctx: *Context, text: []const u8, cfg: TagConfig) void {
+    ClayKit_TagRaw(ctx, text.ptr, @intCast(text.len), cfg);
+}
+
+/// Compute stat style (for custom rendering)
+pub fn computeStatStyle(ctx: *Context, cfg: StatConfig) StatStyle {
+    return ClayKit_ComputeStatStyle(ctx, cfg);
+}
+
+/// Render a stat element with label, value, and optional help text
+pub fn stat(ctx: *Context, label: []const u8, value: []const u8, help_text: ?[]const u8, cfg: StatConfig) void {
+    const help_ptr: [*c]const u8 = if (help_text) |h| h.ptr else null;
+    const help_len: i32 = if (help_text) |h| @intCast(h.len) else 0;
+    ClayKit_Stat(ctx, label.ptr, @intCast(label.len), value.ptr, @intCast(value.len), help_ptr, help_len, cfg);
+}
+
+/// Compute list style (for custom rendering)
+pub fn computeListStyle(ctx: *Context, cfg: ListConfig) ListStyle {
+    return ClayKit_ComputeListStyle(ctx, cfg);
+}
+
+/// Begin a list container
+pub fn listBegin(ctx: *Context, cfg: ListConfig) void {
+    ClayKit_ListBegin(ctx, cfg);
+}
+
+/// Render a list item with marker (bullet or number)
+pub fn listItem(ctx: *Context, text: []const u8, index: u32, cfg: ListConfig) void {
+    ClayKit_ListItemRaw(ctx, text.ptr, @intCast(text.len), index, cfg);
+}
+
+/// End a list container
+pub fn listEnd() void {
+    ClayKit_ListEnd();
+}
+
+/// Compute table style (for custom rendering)
+pub fn computeTableStyle(ctx: *Context, cfg: TableConfig) TableStyle {
+    return ClayKit_ComputeTableStyle(ctx, cfg);
+}
+
+/// Begin a table container
+pub fn tableBegin(ctx: *Context, cfg: TableConfig) void {
+    ClayKit_TableBegin(ctx, cfg);
+}
+
+/// Begin a table header row
+pub fn tableHeaderRow(ctx: *Context, cfg: TableConfig) void {
+    ClayKit_TableHeaderRow(ctx, cfg);
+}
+
+/// Begin a table data row
+pub fn tableRow(ctx: *Context, row_index: u32, cfg: TableConfig) void {
+    ClayKit_TableRow(ctx, row_index, cfg);
+}
+
+/// Begin a header cell with percentage width (0.0-1.0)
+pub fn tableHeaderCell(ctx: *Context, width_percent: f32, cfg: TableConfig) void {
+    ClayKit_TableHeaderCell(ctx, width_percent, cfg);
+}
+
+/// Begin a data cell with percentage width (0.0-1.0)
+pub fn tableCell(ctx: *Context, width_percent: f32, row_index: u32, cfg: TableConfig) void {
+    ClayKit_TableCell(ctx, width_percent, row_index, cfg);
+}
+
+/// End a table cell
+pub fn tableCellEnd() void {
+    ClayKit_TableCellEnd();
+}
+
+/// End a table row
+pub fn tableRowEnd() void {
+    ClayKit_TableRowEnd();
+}
+
+/// End a table
+pub fn tableEnd() void {
+    ClayKit_TableEnd();
+}
+
 /// Get button background color (use with Clay_Hovered() for hover state)
 pub fn buttonBgColor(ctx: *Context, cfg: ButtonConfig, hovered: bool) Color {
     return ClayKit_ButtonBgColor(ctx, cfg, hovered);
@@ -1045,11 +1528,61 @@ pub fn textInput(ctx: *Context, id: []const u8, state: *InputState, cfg: InputCo
     return ClayKit_TextInput(ctx, id.ptr, @intCast(id.len), state, cfg, placeholder.ptr, @intCast(placeholder.len));
 }
 
+/// Compute select style (for custom rendering)
+pub fn computeSelectStyle(ctx: *Context, cfg: SelectConfig) SelectStyle {
+    return ClayKit_ComputeSelectStyle(ctx, cfg);
+}
+
+/// Render a select trigger button
+/// Returns whether it was hovered (for toggling open state on click)
+pub fn selectTrigger(ctx: *Context, id: []const u8, display_text: ?[]const u8, cfg: SelectConfig) bool {
+    const text_ptr: [*c]const u8 = if (display_text) |t| t.ptr else null;
+    const text_len: i32 = if (display_text) |t| @intCast(t.len) else 0;
+    return ClayKit_SelectTrigger(ctx, id.ptr, @intCast(id.len), text_ptr, text_len, cfg);
+}
+
+/// Begin a select dropdown (floating element). Only call when open.
+pub fn selectDropdownBegin(ctx: *Context, id: []const u8, cfg: SelectConfig) void {
+    ClayKit_SelectDropdownBegin(ctx, id.ptr, @intCast(id.len), cfg);
+}
+
+/// Render one select option. Returns true if hovered.
+pub fn selectOption(ctx: *Context, text: []const u8, is_selected: bool, cfg: SelectConfig) bool {
+    return ClayKit_SelectOption(ctx, text.ptr, @intCast(text.len), is_selected, cfg);
+}
+
+/// End the select dropdown.
+pub fn selectDropdownEnd() void {
+    ClayKit_SelectDropdownEnd();
+}
+
 /// Render a checkbox (calls C implementation)
 /// Returns whether the checkbox was hovered (to toggle state on click)
 pub fn checkbox(ctx: *Context, id: []const u8, checked: bool, cfg: CheckboxConfig) bool {
     _ = id; // ID is currently unused in C implementation
     return ClayKit_Checkbox(ctx, checked, cfg);
+}
+
+/// Render a radio button (calls C implementation)
+/// Returns whether the radio was hovered (to toggle state on click)
+pub fn radio(ctx: *Context, id: []const u8, selected: bool, cfg: RadioConfig) bool {
+    _ = id; // ID is currently unused in C implementation
+    return ClayKit_Radio(ctx, selected, cfg);
+}
+
+/// Get radio button size for a given size enum
+pub fn radioSize(ctx: *Context, size: Size) u16 {
+    return ClayKit_RadioSize(ctx, size);
+}
+
+/// Get radio button background color
+pub fn radioBgColor(ctx: *Context, cfg: RadioConfig, selected: bool, hovered: bool) Color {
+    return ClayKit_RadioBgColor(ctx, cfg, selected, hovered);
+}
+
+/// Get radio button border color
+pub fn radioBorderColor(ctx: *Context, cfg: RadioConfig, selected: bool) Color {
+    return ClayKit_RadioBorderColor(ctx, cfg, selected);
 }
 
 /// Render a switch (toggle) (calls C implementation)
@@ -1196,6 +1729,142 @@ pub fn tabs(ctx: *Context, id: []const u8, labels: []const []const u8, active_in
 }
 
 // ============================================================================
+// Link
+// ============================================================================
+
+/// Compute link style (for custom rendering)
+pub fn computeLinkStyle(ctx: *Context, cfg: LinkConfig) LinkStyle {
+    return ClayKit_ComputeLinkStyle(ctx, cfg);
+}
+
+/// Render a link. Returns true if hovered (and not disabled).
+pub fn link(ctx: *Context, text: []const u8, cfg: LinkConfig) bool {
+    return ClayKit_Link(ctx, text.ptr, @intCast(text.len), cfg);
+}
+
+// ============================================================================
+// Breadcrumb
+// ============================================================================
+
+/// Compute breadcrumb style (for custom rendering)
+pub fn computeBreadcrumbStyle(ctx: *Context, cfg: BreadcrumbConfig) BreadcrumbStyle {
+    return ClayKit_ComputeBreadcrumbStyle(ctx, cfg);
+}
+
+/// Begin a breadcrumb container
+pub fn breadcrumbBegin(ctx: *Context, cfg: BreadcrumbConfig) void {
+    ClayKit_BreadcrumbBegin(ctx, cfg);
+}
+
+/// Render a breadcrumb item. Returns true if hovered (and not current).
+pub fn breadcrumbItem(ctx: *Context, text: []const u8, is_current: bool, cfg: BreadcrumbConfig) bool {
+    return ClayKit_BreadcrumbItem(ctx, text.ptr, @intCast(text.len), is_current, cfg);
+}
+
+/// Render a breadcrumb separator
+pub fn breadcrumbSeparator(ctx: *Context, cfg: BreadcrumbConfig) void {
+    ClayKit_BreadcrumbSeparator(ctx, cfg);
+}
+
+/// End the breadcrumb container
+pub fn breadcrumbEnd() void {
+    ClayKit_BreadcrumbEnd();
+}
+
+/// Convenience: render a full breadcrumb bar from a slice of labels.
+/// The last item is styled as "current". Returns ?usize of hovered item index.
+pub fn breadcrumb(ctx: *Context, items: []const []const u8, cfg: BreadcrumbConfig) ?usize {
+    var hovered_index: ?usize = null;
+    ClayKit_BreadcrumbBegin(ctx, cfg);
+    for (items, 0..) |item, i| {
+        if (i > 0) {
+            ClayKit_BreadcrumbSeparator(ctx, cfg);
+        }
+        const is_current = (i == items.len - 1);
+        if (ClayKit_BreadcrumbItem(ctx, item.ptr, @intCast(item.len), is_current, cfg)) {
+            hovered_index = i;
+        }
+    }
+    ClayKit_BreadcrumbEnd();
+    return hovered_index;
+}
+
+// ============================================================================
+// Accordion
+// ============================================================================
+
+/// Compute accordion style (for custom rendering)
+pub fn computeAccordionStyle(ctx: *Context, cfg: AccordionConfig) AccordionStyle {
+    return ClayKit_ComputeAccordionStyle(ctx, cfg);
+}
+
+/// Begin an accordion container
+pub fn accordionBegin(ctx: *Context, cfg: AccordionConfig) void {
+    ClayKit_AccordionBegin(ctx, cfg);
+}
+
+/// Begin an accordion item (wraps header + optional content).
+/// Must be called before accordionHeader. Call accordionItemEnd after
+/// the header (and optional content) to close the item wrapper.
+pub fn accordionItemBegin(ctx: *Context, is_open: bool, cfg: AccordionConfig) void {
+    ClayKit_AccordionItemBegin(ctx, is_open, cfg);
+}
+
+/// End an accordion item wrapper
+pub fn accordionItemEnd() void {
+    ClayKit_AccordionItemEnd();
+}
+
+/// Render an accordion header. Returns true if hovered (for toggle on click).
+pub fn accordionHeader(ctx: *Context, text: []const u8, is_open: bool, cfg: AccordionConfig) bool {
+    return ClayKit_AccordionHeader(ctx, text.ptr, @intCast(text.len), is_open, cfg);
+}
+
+/// Begin accordion content area (only call when section is open)
+pub fn accordionContentBegin(ctx: *Context, cfg: AccordionConfig) void {
+    ClayKit_AccordionContentBegin(ctx, cfg);
+}
+
+/// End accordion content area
+pub fn accordionContentEnd() void {
+    ClayKit_AccordionContentEnd();
+}
+
+/// End the accordion container
+pub fn accordionEnd() void {
+    ClayKit_AccordionEnd();
+}
+
+// ============================================================================
+// Menu
+// ============================================================================
+
+/// Compute menu style (for custom rendering)
+pub fn computeMenuStyle(ctx: *Context, cfg: MenuConfig) MenuStyle {
+    return ClayKit_ComputeMenuStyle(ctx, cfg);
+}
+
+/// Begin a menu dropdown (floating element). Only call when open.
+pub fn menuDropdownBegin(ctx: *Context, id: []const u8, cfg: MenuConfig) void {
+    ClayKit_MenuDropdownBegin(ctx, id.ptr, @intCast(id.len), cfg);
+}
+
+/// Render a menu item. Returns true if hovered and not disabled.
+pub fn menuItem(ctx: *Context, text: []const u8, disabled: bool, cfg: MenuConfig) bool {
+    return ClayKit_MenuItem(ctx, text.ptr, @intCast(text.len), disabled, cfg);
+}
+
+/// Render a menu separator line
+pub fn menuSeparator(ctx: *Context, cfg: MenuConfig) void {
+    ClayKit_MenuSeparator(ctx, cfg);
+}
+
+/// End the menu dropdown
+pub fn menuDropdownEnd() void {
+    ClayKit_MenuDropdownEnd();
+}
+
+// ============================================================================
 // Modal
 // ============================================================================
 
@@ -1277,6 +1946,65 @@ pub fn modal(ctx: *Context, id: []const u8, is_open: bool, cfg: ModalConfig, con
     const modal_hovered = zclay.pointerOver(modal_id);
 
     return cfg.close_on_backdrop and backdrop_hovered and !modal_hovered;
+}
+
+// ============================================================================
+// Spinner
+// ============================================================================
+
+/// Compute spinner style (for custom rendering)
+pub fn computeSpinnerStyle(ctx: *Context, cfg: SpinnerConfig) SpinnerStyle {
+    return ClayKit_ComputeSpinnerStyle(ctx, cfg);
+}
+
+/// Get current spinner rotation angle in degrees (0-360)
+pub fn spinnerAngle(ctx: *Context, cfg: SpinnerConfig) f32 {
+    return ClayKit_SpinnerAngle(ctx, cfg);
+}
+
+/// Render a spinner (ring placeholder - renderer should draw actual spinning arc)
+pub fn spinner(ctx: *Context, cfg: SpinnerConfig) void {
+    ClayKit_Spinner(ctx, cfg);
+}
+
+// ============================================================================
+// Drawer
+// ============================================================================
+
+/// Compute drawer style (for custom rendering)
+pub fn computeDrawerStyle(ctx: *Context, cfg: DrawerConfig) DrawerStyle {
+    return ClayKit_ComputeDrawerStyle(ctx, cfg);
+}
+
+/// Begin a drawer (sliding panel with backdrop). Returns true if backdrop clicked.
+/// Only call when drawer is open. Call DrawerEnd after content.
+pub fn drawerBegin(ctx: *Context, id: []const u8, cfg: DrawerConfig) bool {
+    return ClayKit_DrawerBegin(ctx, id.ptr, @intCast(id.len), cfg);
+}
+
+/// End the drawer
+pub fn drawerEnd() void {
+    ClayKit_DrawerEnd();
+}
+
+// ============================================================================
+// Popover
+// ============================================================================
+
+/// Compute popover style (for custom rendering)
+pub fn computePopoverStyle(ctx: *Context, cfg: PopoverConfig) PopoverStyle {
+    return ClayKit_ComputePopoverStyle(ctx, cfg);
+}
+
+/// Begin a popover (floating element anchored to parent)
+/// Only call when popover is open. Call PopoverEnd after content.
+pub fn popoverBegin(ctx: *Context, id: []const u8, cfg: PopoverConfig) void {
+    ClayKit_PopoverBegin(ctx, id.ptr, @intCast(id.len), cfg);
+}
+
+/// End the popover
+pub fn popoverEnd() void {
+    ClayKit_PopoverEnd();
 }
 
 // ============================================================================

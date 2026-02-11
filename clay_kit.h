@@ -287,6 +287,114 @@ typedef struct ClayKit_BadgeStyle {
 } ClayKit_BadgeStyle;
 
 /* ============================================================================
+ * Tag Configuration
+ * ============================================================================ */
+
+typedef enum ClayKit_TagVariant {
+    CLAYKIT_TAG_SOLID = 0,       /* Solid background */
+    CLAYKIT_TAG_SUBTLE = 1,      /* Light background, colored text */
+    CLAYKIT_TAG_OUTLINE = 2      /* Transparent with border */
+} ClayKit_TagVariant;
+
+typedef struct ClayKit_TagConfig {
+    ClayKit_ColorScheme color_scheme;  /* Color from theme palette */
+    ClayKit_TagVariant variant;        /* solid, subtle, or outline */
+    ClayKit_Size size;                 /* Size affects padding and font */
+    bool closeable;                    /* Show close "x" indicator */
+} ClayKit_TagConfig;
+
+/* Tag computed style */
+typedef struct ClayKit_TagStyle {
+    Clay_Color bg_color;
+    Clay_Color text_color;
+    Clay_Color border_color;
+    Clay_Color close_color;      /* Color for the "x" text */
+    uint16_t border_width;
+    uint16_t pad_x;
+    uint16_t pad_y;
+    uint16_t font_size;
+    uint16_t font_id;
+    uint16_t corner_radius;
+    uint16_t gap;                /* Gap between text and close indicator */
+    uint16_t close_font_size;    /* Font size for close "x" */
+} ClayKit_TagStyle;
+
+/* ============================================================================
+ * Stat Configuration
+ * ============================================================================ */
+
+typedef struct ClayKit_StatConfig {
+    ClayKit_Size size;             /* Affects value font size */
+    Clay_Color label_color;        /* Label text color (default: theme muted) */
+    Clay_Color value_color;        /* Value text color (default: theme fg) */
+    Clay_Color help_color;         /* Help text color (default: theme muted) */
+} ClayKit_StatConfig;
+
+/* Stat computed style */
+typedef struct ClayKit_StatStyle {
+    Clay_Color label_color;
+    Clay_Color value_color;
+    Clay_Color help_color;
+    uint16_t label_font_size;      /* Smaller font for label */
+    uint16_t value_font_size;      /* Larger font for value */
+    uint16_t help_font_size;       /* Smaller font for help text */
+    uint16_t label_font_id;        /* Body font for label */
+    uint16_t value_font_id;        /* Heading font for value */
+    uint16_t help_font_id;         /* Body font for help */
+    uint16_t gap;                  /* Gap between elements */
+} ClayKit_StatStyle;
+
+/* ============================================================================
+ * List Configuration
+ * ============================================================================ */
+
+typedef struct ClayKit_ListConfig {
+    bool ordered;                  /* true = numbered (1. 2. 3.), false = bullet */
+    ClayKit_Size size;             /* Font size and spacing */
+    Clay_Color marker_color;       /* Marker color (default: theme muted) */
+    Clay_Color text_color;         /* Item text color (default: theme fg) */
+} ClayKit_ListConfig;
+
+/* List computed style */
+typedef struct ClayKit_ListStyle {
+    Clay_Color marker_color;
+    Clay_Color text_color;
+    uint16_t font_size;
+    uint16_t font_id;
+    uint16_t gap;                  /* Gap between items (vertical) */
+    uint16_t marker_width;         /* Width reserved for marker column */
+    uint16_t item_gap;             /* Gap between marker and text (horizontal) */
+} ClayKit_ListStyle;
+
+/* ============================================================================
+ * Table Configuration
+ * ============================================================================ */
+
+typedef struct ClayKit_TableConfig {
+    ClayKit_ColorScheme color_scheme;  /* Header color */
+    ClayKit_Size size;                 /* Padding and font size */
+    bool striped;                      /* Alternate row backgrounds */
+    bool bordered;                     /* Borders between cells */
+} ClayKit_TableConfig;
+
+/* Table computed style */
+typedef struct ClayKit_TableStyle {
+    Clay_Color header_bg;          /* Header row background */
+    Clay_Color header_text;        /* Header text color */
+    Clay_Color row_bg;             /* Normal row background */
+    Clay_Color row_alt_bg;         /* Alternate row background (striped) */
+    Clay_Color text_color;         /* Cell text color */
+    Clay_Color border_color;       /* Border color (if bordered) */
+    uint16_t border_width;         /* Border width (0 if not bordered) */
+    uint16_t cell_pad_x;           /* Cell horizontal padding */
+    uint16_t cell_pad_y;           /* Cell vertical padding */
+    uint16_t font_size;            /* Cell text font size */
+    uint16_t header_font_size;     /* Header text font size */
+    uint16_t font_id;              /* Body font ID */
+    uint16_t corner_radius;        /* Table corner radius */
+} ClayKit_TableStyle;
+
+/* ============================================================================
  * Button Configuration
  * ============================================================================ */
 
@@ -620,6 +728,37 @@ void ClayKit_Badge(ClayKit_Context *ctx, Clay_String text, ClayKit_BadgeConfig c
 /* Badge with raw string pointer - for FFI compatibility */
 void ClayKit_BadgeRaw(ClayKit_Context *ctx, const char *text, int32_t text_len, ClayKit_BadgeConfig cfg);
 
+/* Tag */
+ClayKit_TagStyle ClayKit_ComputeTagStyle(ClayKit_Context *ctx, ClayKit_TagConfig cfg);
+void ClayKit_Tag(ClayKit_Context *ctx, Clay_String text, ClayKit_TagConfig cfg);
+void ClayKit_TagRaw(ClayKit_Context *ctx, const char *text, int32_t text_len, ClayKit_TagConfig cfg);
+
+/* Stat */
+ClayKit_StatStyle ClayKit_ComputeStatStyle(ClayKit_Context *ctx, ClayKit_StatConfig cfg);
+void ClayKit_Stat(ClayKit_Context *ctx,
+                  const char *label, int32_t label_len,
+                  const char *value, int32_t value_len,
+                  const char *help_text, int32_t help_len,
+                  ClayKit_StatConfig cfg);
+
+/* List */
+ClayKit_ListStyle ClayKit_ComputeListStyle(ClayKit_Context *ctx, ClayKit_ListConfig cfg);
+void ClayKit_ListBegin(ClayKit_Context *ctx, ClayKit_ListConfig cfg);
+void ClayKit_ListItemRaw(ClayKit_Context *ctx, const char *text, int32_t text_len,
+                         uint32_t index, ClayKit_ListConfig cfg);
+void ClayKit_ListEnd(void);
+
+/* Table */
+ClayKit_TableStyle ClayKit_ComputeTableStyle(ClayKit_Context *ctx, ClayKit_TableConfig cfg);
+void ClayKit_TableBegin(ClayKit_Context *ctx, ClayKit_TableConfig cfg);
+void ClayKit_TableHeaderRow(ClayKit_Context *ctx, ClayKit_TableConfig cfg);
+void ClayKit_TableRow(ClayKit_Context *ctx, uint32_t row_index, ClayKit_TableConfig cfg);
+void ClayKit_TableHeaderCell(ClayKit_Context *ctx, float width_percent, ClayKit_TableConfig cfg);
+void ClayKit_TableCell(ClayKit_Context *ctx, float width_percent, uint32_t row_index, ClayKit_TableConfig cfg);
+void ClayKit_TableCellEnd(void);
+void ClayKit_TableRowEnd(void);
+void ClayKit_TableEnd(void);
+
 /* ============================================================================
  * Input Configuration
  * ============================================================================ */
@@ -633,6 +772,16 @@ typedef struct ClayKit_CheckboxConfig {
     ClayKit_Size size;                 /* Size of checkbox */
     bool disabled;                     /* Disabled state */
 } ClayKit_CheckboxConfig;
+
+/* ============================================================================
+ * Radio Configuration
+ * ============================================================================ */
+
+typedef struct ClayKit_RadioConfig {
+    ClayKit_ColorScheme color_scheme;  /* Color when selected */
+    ClayKit_Size size;                 /* Size of radio button */
+    bool disabled;                     /* Disabled state */
+} ClayKit_RadioConfig;
 
 /* ============================================================================
  * Switch Configuration
@@ -798,6 +947,215 @@ typedef struct ClayKit_ModalStyle {
 } ClayKit_ModalStyle;
 
 /* ============================================================================
+ * Spinner Configuration
+ * ============================================================================ */
+
+typedef struct ClayKit_SpinnerConfig {
+    ClayKit_ColorScheme color_scheme;  /* Spinner color */
+    ClayKit_Size size;                 /* Spinner diameter */
+    float speed;                       /* Rotations per second (0 = default 1.0) */
+} ClayKit_SpinnerConfig;
+
+/* Spinner computed style */
+typedef struct ClayKit_SpinnerStyle {
+    Clay_Color color;            /* Spinner color */
+    Clay_Color track_color;      /* Track (background circle) color */
+    uint16_t diameter;           /* Outer diameter in pixels */
+    uint16_t thickness;          /* Line thickness in pixels */
+    float speed;                 /* Rotations per second */
+} ClayKit_SpinnerStyle;
+
+/* ============================================================================
+ * Drawer Configuration
+ * ============================================================================ */
+
+typedef enum ClayKit_DrawerSide {
+    CLAYKIT_DRAWER_LEFT = 0,
+    CLAYKIT_DRAWER_RIGHT = 1,
+    CLAYKIT_DRAWER_TOP = 2,
+    CLAYKIT_DRAWER_BOTTOM = 3
+} ClayKit_DrawerSide;
+
+typedef struct ClayKit_DrawerConfig {
+    ClayKit_DrawerSide side;         /* Which edge to slide from */
+    uint16_t size;                   /* Width (left/right) or height (top/bottom), 0 = default 300 */
+    bool close_on_backdrop;          /* Close when clicking backdrop (default: true) */
+    uint16_t z_index;                /* Z-index for stacking (0 = default 1000) */
+} ClayKit_DrawerConfig;
+
+/* Drawer computed style */
+typedef struct ClayKit_DrawerStyle {
+    Clay_Color backdrop_color;   /* Semi-transparent backdrop */
+    Clay_Color bg_color;         /* Drawer background */
+    Clay_Color border_color;     /* Drawer border */
+    uint16_t size;               /* Width or height in pixels */
+    uint16_t padding;            /* Inner padding */
+    uint16_t z_index;            /* Z-index for floating */
+} ClayKit_DrawerStyle;
+
+/* ============================================================================
+ * Popover Configuration
+ * ============================================================================ */
+
+typedef enum ClayKit_PopoverPosition {
+    CLAYKIT_POPOVER_TOP = 0,
+    CLAYKIT_POPOVER_BOTTOM = 1,
+    CLAYKIT_POPOVER_LEFT = 2,
+    CLAYKIT_POPOVER_RIGHT = 3
+} ClayKit_PopoverPosition;
+
+typedef struct ClayKit_PopoverConfig {
+    ClayKit_PopoverPosition position;  /* Position relative to anchor */
+    uint16_t z_index;                  /* Z-index for stacking (0 = default 50) */
+} ClayKit_PopoverConfig;
+
+/* Popover computed style */
+typedef struct ClayKit_PopoverStyle {
+    Clay_Color bg_color;         /* Background color */
+    Clay_Color border_color;     /* Border color */
+    uint16_t padding;            /* Inner padding */
+    uint16_t corner_radius;      /* Corner radius */
+    uint16_t z_index;            /* Z-index for floating */
+} ClayKit_PopoverStyle;
+
+/* ============================================================================
+ * Link Configuration
+ * ============================================================================ */
+
+typedef enum ClayKit_LinkVariant {
+    CLAYKIT_LINK_UNDERLINE = 0,       /* Always underlined */
+    CLAYKIT_LINK_HOVER_UNDERLINE = 1, /* Underline on hover only */
+    CLAYKIT_LINK_NONE = 2             /* No underline */
+} ClayKit_LinkVariant;
+
+typedef struct ClayKit_LinkConfig {
+    ClayKit_ColorScheme color_scheme;  /* Link color */
+    ClayKit_Size size;                 /* Font size */
+    ClayKit_LinkVariant variant;       /* Underline style */
+    bool disabled;                     /* Disabled state */
+} ClayKit_LinkConfig;
+
+/* Link computed style */
+typedef struct ClayKit_LinkStyle {
+    Clay_Color text_color;       /* Normal text color */
+    Clay_Color hover_color;      /* Hovered text color */
+    Clay_Color disabled_color;   /* Disabled text color */
+    uint16_t font_size;          /* Font size */
+    uint16_t font_id;            /* Font ID */
+    uint16_t underline_height;   /* Underline thickness */
+} ClayKit_LinkStyle;
+
+/* ============================================================================
+ * Breadcrumb Configuration
+ * ============================================================================ */
+
+typedef struct ClayKit_BreadcrumbConfig {
+    ClayKit_ColorScheme color_scheme;  /* Color scheme */
+    ClayKit_Size size;                 /* Size affects font and gap */
+    const char *separator;             /* Separator text (NULL = "/") */
+    int32_t separator_len;             /* Length of separator */
+} ClayKit_BreadcrumbConfig;
+
+/* Breadcrumb computed style */
+typedef struct ClayKit_BreadcrumbStyle {
+    Clay_Color link_color;         /* Normal link color */
+    Clay_Color hover_color;        /* Hovered link color */
+    Clay_Color current_color;      /* Current (last) item color */
+    Clay_Color separator_color;    /* Separator text color */
+    uint16_t font_size;            /* Font size */
+    uint16_t font_id;              /* Font ID */
+    uint16_t gap;                  /* Gap between items */
+} ClayKit_BreadcrumbStyle;
+
+/* ============================================================================
+ * Accordion Configuration
+ * ============================================================================ */
+
+typedef enum ClayKit_AccordionVariant {
+    CLAYKIT_ACCORDION_BORDERED = 0,   /* Border between items */
+    CLAYKIT_ACCORDION_SEPARATED = 1   /* Cards with gap */
+} ClayKit_AccordionVariant;
+
+typedef struct ClayKit_AccordionConfig {
+    ClayKit_ColorScheme color_scheme;  /* Accent color */
+    ClayKit_Size size;                 /* Size affects padding and font */
+    ClayKit_AccordionVariant variant;  /* Visual style */
+} ClayKit_AccordionConfig;
+
+/* Accordion computed style */
+typedef struct ClayKit_AccordionStyle {
+    Clay_Color header_bg;          /* Header background */
+    Clay_Color header_hover_bg;    /* Header hover background */
+    Clay_Color header_text;        /* Header text color */
+    Clay_Color active_accent;      /* Accent for open indicator */
+    Clay_Color content_bg;         /* Content area background */
+    Clay_Color border_color;       /* Border color */
+    uint16_t padding_x;            /* Header horizontal padding */
+    uint16_t padding_y;            /* Header vertical padding */
+    uint16_t content_padding;      /* Content area padding */
+    uint16_t font_size;            /* Font size */
+    uint16_t font_id;              /* Font ID */
+    uint16_t border_width;         /* Border width */
+    uint16_t corner_radius;        /* Corner radius (for separated) */
+    uint16_t gap;                  /* Gap between items (for separated) */
+} ClayKit_AccordionStyle;
+
+/* ============================================================================
+ * Menu Configuration
+ * ============================================================================ */
+
+typedef struct ClayKit_MenuConfig {
+    ClayKit_ColorScheme color_scheme;  /* Color scheme */
+    ClayKit_Size size;                 /* Size affects padding and font */
+    bool disabled;                     /* Disabled state */
+} ClayKit_MenuConfig;
+
+/* Menu computed style */
+typedef struct ClayKit_MenuStyle {
+    Clay_Color bg_color;           /* Dropdown background */
+    Clay_Color border_color;       /* Dropdown border */
+    Clay_Color text_color;         /* Item text color */
+    Clay_Color disabled_text;      /* Disabled item text */
+    Clay_Color hover_bg;           /* Hovered item background */
+    Clay_Color separator_color;    /* Separator line color */
+    uint16_t padding_x;            /* Item horizontal padding */
+    uint16_t padding_y;            /* Item vertical padding */
+    uint16_t font_size;            /* Font size */
+    uint16_t font_id;              /* Font ID */
+    uint16_t corner_radius;        /* Dropdown corner radius */
+    uint16_t item_gap;             /* Gap between items */
+    uint16_t separator_height;     /* Separator thickness */
+    uint16_t dropdown_padding;     /* Dropdown inner padding */
+} ClayKit_MenuStyle;
+
+/* ============================================================================
+ * Select Configuration
+ * ============================================================================ */
+
+typedef struct ClayKit_SelectConfig {
+    ClayKit_ColorScheme color_scheme;  /* Color scheme */
+    ClayKit_Size size;                 /* Size affects padding and font */
+    bool disabled;                     /* Disabled state */
+} ClayKit_SelectConfig;
+
+/* Select computed style */
+typedef struct ClayKit_SelectStyle {
+    Clay_Color bg_color;             /* Trigger background */
+    Clay_Color border_color;         /* Trigger border */
+    Clay_Color text_color;           /* Trigger text */
+    Clay_Color placeholder_color;    /* When no selection */
+    Clay_Color dropdown_bg;          /* Dropdown container background */
+    Clay_Color dropdown_border;      /* Dropdown border */
+    Clay_Color option_hover_bg;      /* Hovered option background */
+    uint16_t padding_x;
+    uint16_t padding_y;
+    uint16_t font_size;
+    uint16_t font_id;
+    uint16_t corner_radius;
+    uint16_t dropdown_gap;           /* Gap between options */
+} ClayKit_SelectStyle;
+
+/* ============================================================================
  * Input Configuration
  * ============================================================================ */
 
@@ -853,6 +1211,11 @@ uint16_t ClayKit_CheckboxSize(ClayKit_Context *ctx, ClayKit_Size size);
 Clay_Color ClayKit_CheckboxBgColor(ClayKit_Context *ctx, ClayKit_CheckboxConfig cfg, bool checked, bool hovered);
 Clay_Color ClayKit_CheckboxBorderColor(ClayKit_Context *ctx, ClayKit_CheckboxConfig cfg, bool checked);
 
+/* Radio helper functions */
+uint16_t ClayKit_RadioSize(ClayKit_Context *ctx, ClayKit_Size size);
+Clay_Color ClayKit_RadioBgColor(ClayKit_Context *ctx, ClayKit_RadioConfig cfg, bool selected, bool hovered);
+Clay_Color ClayKit_RadioBorderColor(ClayKit_Context *ctx, ClayKit_RadioConfig cfg, bool selected);
+
 /* Switch helper functions */
 uint16_t ClayKit_SwitchWidth(ClayKit_Context *ctx, ClayKit_Size size);
 uint16_t ClayKit_SwitchHeight(ClayKit_Context *ctx, ClayKit_Size size);
@@ -880,11 +1243,29 @@ ClayKit_TabsStyle ClayKit_ComputeTabsStyle(ClayKit_Context *ctx, ClayKit_TabsCon
 /* Modal helper functions */
 ClayKit_ModalStyle ClayKit_ComputeModalStyle(ClayKit_Context *ctx, ClayKit_ModalConfig cfg);
 
+/* Spinner helper functions */
+ClayKit_SpinnerStyle ClayKit_ComputeSpinnerStyle(ClayKit_Context *ctx, ClayKit_SpinnerConfig cfg);
+float ClayKit_SpinnerAngle(ClayKit_Context *ctx, ClayKit_SpinnerConfig cfg);
+void ClayKit_Spinner(ClayKit_Context *ctx, ClayKit_SpinnerConfig cfg);
+
+/* Drawer helper functions */
+ClayKit_DrawerStyle ClayKit_ComputeDrawerStyle(ClayKit_Context *ctx, ClayKit_DrawerConfig cfg);
+bool ClayKit_DrawerBegin(ClayKit_Context *ctx, const char *id, int32_t id_len, ClayKit_DrawerConfig cfg);
+void ClayKit_DrawerEnd(void);
+
+/* Popover helper functions */
+ClayKit_PopoverStyle ClayKit_ComputePopoverStyle(ClayKit_Context *ctx, ClayKit_PopoverConfig cfg);
+void ClayKit_PopoverBegin(ClayKit_Context *ctx, const char *id, int32_t id_len, ClayKit_PopoverConfig cfg);
+void ClayKit_PopoverEnd(void);
+
 /* Button rendering - returns true if hovered */
 bool ClayKit_Button(ClayKit_Context *ctx, const char *text, int32_t text_len, ClayKit_ButtonConfig cfg);
 
 /* Checkbox rendering - returns true if hovered */
 bool ClayKit_Checkbox(ClayKit_Context *ctx, bool checked, ClayKit_CheckboxConfig cfg);
+
+/* Radio rendering - returns true if hovered */
+bool ClayKit_Radio(ClayKit_Context *ctx, bool selected, ClayKit_RadioConfig cfg);
 
 /* Switch rendering - returns true if hovered */
 bool ClayKit_Switch(ClayKit_Context *ctx, bool on, ClayKit_SwitchConfig cfg);
@@ -894,6 +1275,45 @@ bool ClayKit_Slider(ClayKit_Context *ctx, float value, ClayKit_SliderConfig cfg)
 
 /* Single tab rendering - returns true if hovered */
 bool ClayKit_Tab(ClayKit_Context *ctx, const char *label, int32_t label_len, bool is_active, ClayKit_TabsConfig cfg);
+
+/* Link helper functions */
+ClayKit_LinkStyle ClayKit_ComputeLinkStyle(ClayKit_Context *ctx, ClayKit_LinkConfig cfg);
+bool ClayKit_Link(ClayKit_Context *ctx, const char *text, int32_t text_len, ClayKit_LinkConfig cfg);
+
+/* Breadcrumb helper functions */
+ClayKit_BreadcrumbStyle ClayKit_ComputeBreadcrumbStyle(ClayKit_Context *ctx, ClayKit_BreadcrumbConfig cfg);
+void ClayKit_BreadcrumbBegin(ClayKit_Context *ctx, ClayKit_BreadcrumbConfig cfg);
+bool ClayKit_BreadcrumbItem(ClayKit_Context *ctx, const char *text, int32_t text_len, bool is_current, ClayKit_BreadcrumbConfig cfg);
+void ClayKit_BreadcrumbSeparator(ClayKit_Context *ctx, ClayKit_BreadcrumbConfig cfg);
+void ClayKit_BreadcrumbEnd(void);
+
+/* Accordion helper functions */
+ClayKit_AccordionStyle ClayKit_ComputeAccordionStyle(ClayKit_Context *ctx, ClayKit_AccordionConfig cfg);
+void ClayKit_AccordionBegin(ClayKit_Context *ctx, ClayKit_AccordionConfig cfg);
+void ClayKit_AccordionItemBegin(ClayKit_Context *ctx, bool is_open, ClayKit_AccordionConfig cfg);
+void ClayKit_AccordionItemEnd(void);
+bool ClayKit_AccordionHeader(ClayKit_Context *ctx, const char *text, int32_t text_len, bool is_open, ClayKit_AccordionConfig cfg);
+void ClayKit_AccordionContentBegin(ClayKit_Context *ctx, ClayKit_AccordionConfig cfg);
+void ClayKit_AccordionContentEnd(void);
+void ClayKit_AccordionEnd(void);
+
+/* Menu helper functions */
+ClayKit_MenuStyle ClayKit_ComputeMenuStyle(ClayKit_Context *ctx, ClayKit_MenuConfig cfg);
+void ClayKit_MenuDropdownBegin(ClayKit_Context *ctx, const char *id, int32_t id_len, ClayKit_MenuConfig cfg);
+bool ClayKit_MenuItem(ClayKit_Context *ctx, const char *text, int32_t text_len, bool disabled, ClayKit_MenuConfig cfg);
+void ClayKit_MenuSeparator(ClayKit_Context *ctx, ClayKit_MenuConfig cfg);
+void ClayKit_MenuDropdownEnd(void);
+
+/* Select helper functions */
+ClayKit_SelectStyle ClayKit_ComputeSelectStyle(ClayKit_Context *ctx, ClayKit_SelectConfig cfg);
+bool ClayKit_SelectTrigger(ClayKit_Context *ctx, const char *id, int32_t id_len,
+                           const char *display_text, int32_t display_len,
+                           ClayKit_SelectConfig cfg);
+void ClayKit_SelectDropdownBegin(ClayKit_Context *ctx, const char *id, int32_t id_len,
+                                 ClayKit_SelectConfig cfg);
+bool ClayKit_SelectOption(ClayKit_Context *ctx, const char *text, int32_t text_len,
+                          bool is_selected, ClayKit_SelectConfig cfg);
+void ClayKit_SelectDropdownEnd(void);
 
 /* Text input rendering - renders input box with text, cursor, and optional placeholder
  * id/id_len: element ID for later lookup via Clay_GetElementData
@@ -1555,6 +1975,45 @@ Clay_Color ClayKit_CheckboxBorderColor(ClayKit_Context *ctx, ClayKit_CheckboxCon
 }
 
 /* ----------------------------------------------------------------------------
+ * Radio Helper Functions
+ * ---------------------------------------------------------------------------- */
+
+uint16_t ClayKit_RadioSize(ClayKit_Context *ctx, ClayKit_Size size) {
+    /* Same dimensions as Checkbox */
+    return ClayKit_CheckboxSize(ctx, size);
+}
+
+Clay_Color ClayKit_RadioBgColor(ClayKit_Context *ctx, ClayKit_RadioConfig cfg, bool selected, bool hovered) {
+    ClayKit_Theme *theme = ctx->theme_ptr;
+
+    if (cfg.disabled) {
+        return selected ? theme->muted : theme->border;
+    }
+
+    Clay_Color scheme_color = ClayKit_GetSchemeColor(theme, cfg.color_scheme);
+
+    if (selected) {
+        return hovered ? claykit_color_darken(scheme_color, 0.1f) : scheme_color;
+    }
+
+    return hovered ? claykit_color_lighten(scheme_color, 0.95f) : theme->bg;
+}
+
+Clay_Color ClayKit_RadioBorderColor(ClayKit_Context *ctx, ClayKit_RadioConfig cfg, bool selected) {
+    ClayKit_Theme *theme = ctx->theme_ptr;
+
+    if (cfg.disabled) {
+        return theme->muted;
+    }
+
+    if (selected) {
+        return ClayKit_GetSchemeColor(theme, cfg.color_scheme);
+    }
+
+    return theme->border;
+}
+
+/* ----------------------------------------------------------------------------
  * Switch Helper Functions
  * ---------------------------------------------------------------------------- */
 
@@ -1716,6 +2175,501 @@ void ClayKit_Badge(ClayKit_Context *ctx, Clay_String text, ClayKit_BadgeConfig c
 }
 
 /* ----------------------------------------------------------------------------
+ * Tag
+ * ---------------------------------------------------------------------------- */
+
+ClayKit_TagStyle ClayKit_ComputeTagStyle(ClayKit_Context *ctx, ClayKit_TagConfig cfg) {
+    ClayKit_Theme *theme = ctx->theme_ptr;
+    Clay_Color scheme_color = ClayKit_GetSchemeColor(theme, cfg.color_scheme);
+    ClayKit_TagStyle style;
+
+    /* Determine padding and font size based on size */
+    switch (cfg.size) {
+        case CLAYKIT_SIZE_XS:
+            style.pad_x = 6; style.pad_y = 2; style.font_size = theme->font_size.xs;
+            style.gap = 4; style.close_font_size = theme->font_size.xs; break;
+        case CLAYKIT_SIZE_SM:
+            style.pad_x = 8; style.pad_y = 2; style.font_size = theme->font_size.xs;
+            style.gap = 4; style.close_font_size = theme->font_size.xs; break;
+        case CLAYKIT_SIZE_LG:
+            style.pad_x = 12; style.pad_y = 4; style.font_size = theme->font_size.md;
+            style.gap = 6; style.close_font_size = theme->font_size.sm; break;
+        case CLAYKIT_SIZE_XL:
+            style.pad_x = 14; style.pad_y = 5; style.font_size = theme->font_size.lg;
+            style.gap = 8; style.close_font_size = theme->font_size.md; break;
+        case CLAYKIT_SIZE_MD:
+        default:
+            style.pad_x = 10; style.pad_y = 3; style.font_size = theme->font_size.sm;
+            style.gap = 5; style.close_font_size = theme->font_size.xs; break;
+    }
+
+    /* Colors based on variant (same logic as badge) */
+    style.border_width = 0;
+    style.font_id = theme->font_id.body;
+    style.corner_radius = theme->radius.md;
+
+    switch (cfg.variant) {
+        case CLAYKIT_TAG_SOLID:
+            style.bg_color = scheme_color;
+            style.text_color = (Clay_Color){ 255, 255, 255, 255 };
+            style.close_color = (Clay_Color){ 255, 255, 255, 180 };
+            style.border_color = (Clay_Color){ 0, 0, 0, 0 };
+            break;
+        case CLAYKIT_TAG_SUBTLE:
+            style.bg_color = claykit_color_lighten(scheme_color, 0.85f);
+            style.text_color = scheme_color;
+            style.close_color = claykit_color_lighten(scheme_color, 0.3f);
+            style.border_color = (Clay_Color){ 0, 0, 0, 0 };
+            break;
+        case CLAYKIT_TAG_OUTLINE:
+            style.bg_color = (Clay_Color){ 0, 0, 0, 0 };
+            style.text_color = scheme_color;
+            style.close_color = claykit_color_lighten(scheme_color, 0.3f);
+            style.border_color = scheme_color;
+            style.border_width = 1;
+            break;
+        default:
+            style.bg_color = scheme_color;
+            style.text_color = (Clay_Color){ 255, 255, 255, 255 };
+            style.close_color = (Clay_Color){ 255, 255, 255, 180 };
+            style.border_color = (Clay_Color){ 0, 0, 0, 0 };
+            break;
+    }
+
+    return style;
+}
+
+void ClayKit_TagRaw(ClayKit_Context *ctx, const char *text, int32_t text_len, ClayKit_TagConfig cfg) {
+    ClayKit_TagStyle style = ClayKit_ComputeTagStyle(ctx, cfg);
+    Clay_String clay_text = { false, text_len, text };
+
+    Clay_ElementDeclaration decl = {0};
+    decl.layout.sizing.width.type = CLAY__SIZING_TYPE_FIT;
+    decl.layout.sizing.height.type = CLAY__SIZING_TYPE_FIT;
+    decl.layout.padding.left = style.pad_x;
+    decl.layout.padding.right = style.pad_x;
+    decl.layout.padding.top = style.pad_y;
+    decl.layout.padding.bottom = style.pad_y;
+    decl.layout.layoutDirection = CLAY_LEFT_TO_RIGHT;
+    decl.layout.childAlignment.y = CLAY_ALIGN_Y_CENTER;
+    decl.layout.childGap = cfg.closeable ? style.gap : 0;
+    decl.backgroundColor = style.bg_color;
+    decl.cornerRadius.topLeft = (float)style.corner_radius;
+    decl.cornerRadius.topRight = (float)style.corner_radius;
+    decl.cornerRadius.bottomLeft = (float)style.corner_radius;
+    decl.cornerRadius.bottomRight = (float)style.corner_radius;
+    decl.border.color = style.border_color;
+    decl.border.width.left = style.border_width;
+    decl.border.width.right = style.border_width;
+    decl.border.width.top = style.border_width;
+    decl.border.width.bottom = style.border_width;
+
+    Clay__OpenElement();
+    Clay__ConfigureOpenElement(decl);
+
+    /* Main text */
+    Clay_TextElementConfig text_config = {0};
+    text_config.fontSize = style.font_size;
+    text_config.fontId = style.font_id;
+    text_config.textColor = style.text_color;
+    text_config.wrapMode = CLAY_TEXT_WRAP_NONE;
+    Clay__OpenTextElement(clay_text, Clay__StoreTextElementConfig(text_config));
+
+    /* Close indicator */
+    if (cfg.closeable) {
+        Clay_String close_str = { false, 1, "x" };
+        Clay_TextElementConfig close_config = {0};
+        close_config.fontSize = style.close_font_size;
+        close_config.fontId = style.font_id;
+        close_config.textColor = style.close_color;
+        close_config.wrapMode = CLAY_TEXT_WRAP_NONE;
+        Clay__OpenTextElement(close_str, Clay__StoreTextElementConfig(close_config));
+    }
+
+    Clay__CloseElement();
+}
+
+void ClayKit_Tag(ClayKit_Context *ctx, Clay_String text, ClayKit_TagConfig cfg) {
+    ClayKit_TagRaw(ctx, text.chars, text.length, cfg);
+}
+
+/* ----------------------------------------------------------------------------
+ * Stat
+ * ---------------------------------------------------------------------------- */
+
+ClayKit_StatStyle ClayKit_ComputeStatStyle(ClayKit_Context *ctx, ClayKit_StatConfig cfg) {
+    ClayKit_Theme *theme = ctx->theme_ptr;
+    ClayKit_StatStyle style;
+
+    /* Default colors from theme when alpha == 0 */
+    style.label_color = (cfg.label_color.a > 0) ? cfg.label_color : theme->muted;
+    style.value_color = (cfg.value_color.a > 0) ? cfg.value_color : theme->fg;
+    style.help_color = (cfg.help_color.a > 0) ? cfg.help_color : theme->muted;
+
+    /* Font IDs */
+    style.label_font_id = theme->font_id.body;
+    style.value_font_id = theme->font_id.heading;
+    style.help_font_id = theme->font_id.body;
+
+    /* Font sizes: label one step below, value one step above */
+    switch (cfg.size) {
+        case CLAYKIT_SIZE_XS:
+            style.label_font_size = theme->font_size.xs;
+            style.value_font_size = theme->font_size.sm;
+            style.help_font_size = theme->font_size.xs;
+            style.gap = theme->spacing.xs;
+            break;
+        case CLAYKIT_SIZE_SM:
+            style.label_font_size = theme->font_size.xs;
+            style.value_font_size = theme->font_size.md;
+            style.help_font_size = theme->font_size.xs;
+            style.gap = theme->spacing.xs;
+            break;
+        case CLAYKIT_SIZE_LG:
+            style.label_font_size = theme->font_size.md;
+            style.value_font_size = theme->font_size.xl;
+            style.help_font_size = theme->font_size.sm;
+            style.gap = theme->spacing.sm;
+            break;
+        case CLAYKIT_SIZE_XL:
+            style.label_font_size = theme->font_size.lg;
+            style.value_font_size = theme->font_size.xl;
+            style.help_font_size = theme->font_size.md;
+            style.gap = theme->spacing.sm;
+            break;
+        case CLAYKIT_SIZE_MD:
+        default:
+            style.label_font_size = theme->font_size.sm;
+            style.value_font_size = theme->font_size.lg;
+            style.help_font_size = theme->font_size.xs;
+            style.gap = theme->spacing.xs;
+            break;
+    }
+
+    return style;
+}
+
+void ClayKit_Stat(ClayKit_Context *ctx,
+                  const char *label, int32_t label_len,
+                  const char *value, int32_t value_len,
+                  const char *help_text, int32_t help_len,
+                  ClayKit_StatConfig cfg) {
+    ClayKit_StatStyle style = ClayKit_ComputeStatStyle(ctx, cfg);
+
+    /* Vertical container */
+    Clay_ElementDeclaration decl = {0};
+    decl.layout.sizing.width.type = CLAY__SIZING_TYPE_FIT;
+    decl.layout.sizing.height.type = CLAY__SIZING_TYPE_FIT;
+    decl.layout.layoutDirection = CLAY_TOP_TO_BOTTOM;
+    decl.layout.childGap = style.gap;
+
+    Clay__OpenElement();
+    Clay__ConfigureOpenElement(decl);
+
+    /* Label */
+    {
+        Clay_String clay_label = { false, label_len, label };
+        Clay_TextElementConfig cfg_label = {0};
+        cfg_label.fontSize = style.label_font_size;
+        cfg_label.fontId = style.label_font_id;
+        cfg_label.textColor = style.label_color;
+        cfg_label.wrapMode = CLAY_TEXT_WRAP_NONE;
+        Clay__OpenTextElement(clay_label, Clay__StoreTextElementConfig(cfg_label));
+    }
+
+    /* Value */
+    {
+        Clay_String clay_value = { false, value_len, value };
+        Clay_TextElementConfig cfg_value = {0};
+        cfg_value.fontSize = style.value_font_size;
+        cfg_value.fontId = style.value_font_id;
+        cfg_value.textColor = style.value_color;
+        cfg_value.wrapMode = CLAY_TEXT_WRAP_NONE;
+        Clay__OpenTextElement(clay_value, Clay__StoreTextElementConfig(cfg_value));
+    }
+
+    /* Help text (optional) */
+    if (help_text != NULL && help_len > 0) {
+        Clay_String clay_help = { false, help_len, help_text };
+        Clay_TextElementConfig cfg_help = {0};
+        cfg_help.fontSize = style.help_font_size;
+        cfg_help.fontId = style.help_font_id;
+        cfg_help.textColor = style.help_color;
+        cfg_help.wrapMode = CLAY_TEXT_WRAP_WORDS;
+        Clay__OpenTextElement(clay_help, Clay__StoreTextElementConfig(cfg_help));
+    }
+
+    Clay__CloseElement();
+}
+
+/* ----------------------------------------------------------------------------
+ * List
+ * ---------------------------------------------------------------------------- */
+
+static void claykit_uint_to_str(uint32_t n, char *buf, int32_t *out_len) {
+    char tmp[12];
+    int pos = 0;
+    if (n == 0) { tmp[pos++] = '0'; }
+    else {
+        while (n > 0) { tmp[pos++] = '0' + (char)(n % 10); n /= 10; }
+    }
+    /* Reverse */
+    { int i; for (i = 0; i < pos; i++) { buf[i] = tmp[pos - 1 - i]; } }
+    buf[pos] = '.';
+    *out_len = pos + 1;
+}
+
+ClayKit_ListStyle ClayKit_ComputeListStyle(ClayKit_Context *ctx, ClayKit_ListConfig cfg) {
+    ClayKit_Theme *theme = ctx->theme_ptr;
+    ClayKit_ListStyle style;
+
+    style.marker_color = (cfg.marker_color.a > 0) ? cfg.marker_color : theme->muted;
+    style.text_color = (cfg.text_color.a > 0) ? cfg.text_color : theme->fg;
+    style.font_id = theme->font_id.body;
+
+    switch (cfg.size) {
+        case CLAYKIT_SIZE_XS:
+            style.font_size = theme->font_size.xs;
+            style.gap = 2; style.marker_width = 18; style.item_gap = 4; break;
+        case CLAYKIT_SIZE_SM:
+            style.font_size = theme->font_size.sm;
+            style.gap = 3; style.marker_width = 20; style.item_gap = 6; break;
+        case CLAYKIT_SIZE_LG:
+            style.font_size = theme->font_size.lg;
+            style.gap = 6; style.marker_width = 28; style.item_gap = 10; break;
+        case CLAYKIT_SIZE_XL:
+            style.font_size = theme->font_size.xl;
+            style.gap = 8; style.marker_width = 32; style.item_gap = 12; break;
+        case CLAYKIT_SIZE_MD:
+        default:
+            style.font_size = theme->font_size.md;
+            style.gap = 4; style.marker_width = 24; style.item_gap = 8; break;
+    }
+
+    return style;
+}
+
+void ClayKit_ListBegin(ClayKit_Context *ctx, ClayKit_ListConfig cfg) {
+    ClayKit_ListStyle style = ClayKit_ComputeListStyle(ctx, cfg);
+
+    Clay_ElementDeclaration decl = {0};
+    decl.layout.sizing.width.type = CLAY__SIZING_TYPE_GROW;
+    decl.layout.sizing.height.type = CLAY__SIZING_TYPE_FIT;
+    decl.layout.layoutDirection = CLAY_TOP_TO_BOTTOM;
+    decl.layout.childGap = style.gap;
+
+    Clay__OpenElement();
+    Clay__ConfigureOpenElement(decl);
+}
+
+void ClayKit_ListItemRaw(ClayKit_Context *ctx, const char *text, int32_t text_len,
+                         uint32_t index, ClayKit_ListConfig cfg) {
+    ClayKit_ListStyle style = ClayKit_ComputeListStyle(ctx, cfg);
+
+    /* Row container: [marker] [text] */
+    Clay_ElementDeclaration row_decl = {0};
+    row_decl.layout.sizing.width.type = CLAY__SIZING_TYPE_GROW;
+    row_decl.layout.sizing.height.type = CLAY__SIZING_TYPE_FIT;
+    row_decl.layout.layoutDirection = CLAY_LEFT_TO_RIGHT;
+    row_decl.layout.childGap = style.item_gap;
+    row_decl.layout.childAlignment.y = CLAY_ALIGN_Y_TOP;
+
+    Clay__OpenElement();
+    Clay__ConfigureOpenElement(row_decl);
+
+    /* Marker container (fixed width, right-aligned text) */
+    {
+        Clay_ElementDeclaration marker_decl = {0};
+        marker_decl.layout.sizing.width.type = CLAY__SIZING_TYPE_FIXED;
+        marker_decl.layout.sizing.width.size.minMax.min = (float)style.marker_width;
+        marker_decl.layout.sizing.width.size.minMax.max = (float)style.marker_width;
+        marker_decl.layout.sizing.height.type = CLAY__SIZING_TYPE_FIT;
+        marker_decl.layout.childAlignment.x = CLAY_ALIGN_X_RIGHT;
+
+        Clay__OpenElement();
+        Clay__ConfigureOpenElement(marker_decl);
+
+        Clay_TextElementConfig marker_text_cfg = {0};
+        marker_text_cfg.fontSize = style.font_size;
+        marker_text_cfg.fontId = style.font_id;
+        marker_text_cfg.textColor = style.marker_color;
+        marker_text_cfg.wrapMode = CLAY_TEXT_WRAP_NONE;
+
+        if (cfg.ordered) {
+            /* Clay stores string pointers and reads them at render time,
+               so the buffer must survive until after Clay_EndLayout().
+               Use a static ring of buffers — one per list item index. */
+            #define CLAYKIT_NUM_BUF_SLOTS 64
+            static char num_bufs[CLAYKIT_NUM_BUF_SLOTS][12];
+            char *num_buf = num_bufs[index % CLAYKIT_NUM_BUF_SLOTS];
+            int32_t num_len;
+            claykit_uint_to_str(index + 1, num_buf, &num_len);
+            Clay_String marker_str = { false, num_len, num_buf };
+            Clay__OpenTextElement(marker_str, Clay__StoreTextElementConfig(marker_text_cfg));
+        } else {
+            /* Bullet character: Unicode U+2022 */
+            Clay_String bullet_str = { false, 3, "\xe2\x80\xa2" };
+            Clay__OpenTextElement(bullet_str, Clay__StoreTextElementConfig(marker_text_cfg));
+        }
+
+        Clay__CloseElement(); /* marker container */
+    }
+
+    /* Item text */
+    {
+        Clay_String clay_text = { false, text_len, text };
+        Clay_TextElementConfig text_cfg = {0};
+        text_cfg.fontSize = style.font_size;
+        text_cfg.fontId = style.font_id;
+        text_cfg.textColor = style.text_color;
+        text_cfg.wrapMode = CLAY_TEXT_WRAP_WORDS;
+        Clay__OpenTextElement(clay_text, Clay__StoreTextElementConfig(text_cfg));
+    }
+
+    Clay__CloseElement(); /* row */
+}
+
+void ClayKit_ListEnd(void) {
+    Clay__CloseElement();
+}
+
+/* ----------------------------------------------------------------------------
+ * Table
+ * ---------------------------------------------------------------------------- */
+
+ClayKit_TableStyle ClayKit_ComputeTableStyle(ClayKit_Context *ctx, ClayKit_TableConfig cfg) {
+    ClayKit_Theme *theme = ctx->theme_ptr;
+    Clay_Color scheme_color = ClayKit_GetSchemeColor(theme, cfg.color_scheme);
+    ClayKit_TableStyle style;
+
+    style.header_bg = scheme_color;
+    style.header_text = (Clay_Color){ 255, 255, 255, 255 };
+    style.row_bg = theme->bg;
+    style.row_alt_bg = cfg.striped ? claykit_color_lighten(theme->border, 0.7f) : theme->bg;
+    style.text_color = theme->fg;
+    style.border_color = theme->border;
+    style.border_width = cfg.bordered ? 1 : 0;
+    style.font_id = theme->font_id.body;
+    style.corner_radius = theme->radius.md;
+
+    switch (cfg.size) {
+        case CLAYKIT_SIZE_XS:
+            style.cell_pad_x = 4; style.cell_pad_y = 2;
+            style.font_size = theme->font_size.xs;
+            style.header_font_size = theme->font_size.xs; break;
+        case CLAYKIT_SIZE_SM:
+            style.cell_pad_x = 6; style.cell_pad_y = 4;
+            style.font_size = theme->font_size.sm;
+            style.header_font_size = theme->font_size.sm; break;
+        case CLAYKIT_SIZE_LG:
+            style.cell_pad_x = 16; style.cell_pad_y = 10;
+            style.font_size = theme->font_size.lg;
+            style.header_font_size = theme->font_size.lg; break;
+        case CLAYKIT_SIZE_XL:
+            style.cell_pad_x = 20; style.cell_pad_y = 12;
+            style.font_size = theme->font_size.xl;
+            style.header_font_size = theme->font_size.xl; break;
+        case CLAYKIT_SIZE_MD:
+        default:
+            style.cell_pad_x = 12; style.cell_pad_y = 8;
+            style.font_size = theme->font_size.md;
+            style.header_font_size = theme->font_size.md; break;
+    }
+
+    return style;
+}
+
+void ClayKit_TableBegin(ClayKit_Context *ctx, ClayKit_TableConfig cfg) {
+    ClayKit_TableStyle style = ClayKit_ComputeTableStyle(ctx, cfg);
+
+    Clay_ElementDeclaration decl = {0};
+    decl.layout.sizing.width.type = CLAY__SIZING_TYPE_GROW;
+    decl.layout.sizing.height.type = CLAY__SIZING_TYPE_FIT;
+    decl.layout.layoutDirection = CLAY_TOP_TO_BOTTOM;
+    /* Use childGap as horizontal border between rows */
+    decl.layout.childGap = style.border_width;
+    decl.backgroundColor = style.border_color;
+    decl.cornerRadius.topLeft = (float)style.corner_radius;
+    decl.cornerRadius.topRight = (float)style.corner_radius;
+    decl.cornerRadius.bottomLeft = (float)style.corner_radius;
+    decl.cornerRadius.bottomRight = (float)style.corner_radius;
+
+    Clay__OpenElement();
+    Clay__ConfigureOpenElement(decl);
+}
+
+void ClayKit_TableHeaderRow(ClayKit_Context *ctx, ClayKit_TableConfig cfg) {
+    ClayKit_TableStyle style = ClayKit_ComputeTableStyle(ctx, cfg);
+    (void)style;
+
+    Clay_ElementDeclaration decl = {0};
+    decl.layout.sizing.width.type = CLAY__SIZING_TYPE_GROW;
+    decl.layout.sizing.height.type = CLAY__SIZING_TYPE_FIT;
+    decl.layout.layoutDirection = CLAY_LEFT_TO_RIGHT;
+    decl.layout.childGap = style.border_width;
+    decl.backgroundColor = style.border_color;
+
+    Clay__OpenElement();
+    Clay__ConfigureOpenElement(decl);
+}
+
+void ClayKit_TableRow(ClayKit_Context *ctx, uint32_t row_index, ClayKit_TableConfig cfg) {
+    ClayKit_TableStyle style = ClayKit_ComputeTableStyle(ctx, cfg);
+    (void)row_index;
+
+    Clay_ElementDeclaration decl = {0};
+    decl.layout.sizing.width.type = CLAY__SIZING_TYPE_GROW;
+    decl.layout.sizing.height.type = CLAY__SIZING_TYPE_FIT;
+    decl.layout.layoutDirection = CLAY_LEFT_TO_RIGHT;
+    decl.layout.childGap = style.border_width;
+    /* Row bg = border_color when bordered, so gaps between cells show as borders */
+    decl.backgroundColor = cfg.bordered ? style.border_color : (Clay_Color){0, 0, 0, 0};
+
+    Clay__OpenElement();
+    Clay__ConfigureOpenElement(decl);
+}
+
+void ClayKit_TableHeaderCell(ClayKit_Context *ctx, float width_percent, ClayKit_TableConfig cfg) {
+    ClayKit_TableStyle style = ClayKit_ComputeTableStyle(ctx, cfg);
+
+    Clay_ElementDeclaration decl = {0};
+    decl.layout.sizing.width.type = CLAY__SIZING_TYPE_PERCENT;
+    decl.layout.sizing.width.size.percent = width_percent;
+    decl.layout.sizing.height.type = CLAY__SIZING_TYPE_FIT;
+    decl.layout.padding.left = style.cell_pad_x;
+    decl.layout.padding.right = style.cell_pad_x;
+    decl.layout.padding.top = style.cell_pad_y;
+    decl.layout.padding.bottom = style.cell_pad_y;
+    decl.backgroundColor = style.header_bg;
+
+    Clay__OpenElement();
+    Clay__ConfigureOpenElement(decl);
+}
+
+void ClayKit_TableCell(ClayKit_Context *ctx, float width_percent, uint32_t row_index, ClayKit_TableConfig cfg) {
+    ClayKit_TableStyle style = ClayKit_ComputeTableStyle(ctx, cfg);
+
+    Clay_Color bg = (cfg.striped && (row_index % 2 == 1)) ? style.row_alt_bg : style.row_bg;
+
+    Clay_ElementDeclaration decl = {0};
+    decl.layout.sizing.width.type = CLAY__SIZING_TYPE_PERCENT;
+    decl.layout.sizing.width.size.percent = width_percent;
+    decl.layout.sizing.height.type = CLAY__SIZING_TYPE_FIT;
+    decl.layout.padding.left = style.cell_pad_x;
+    decl.layout.padding.right = style.cell_pad_x;
+    decl.layout.padding.top = style.cell_pad_y;
+    decl.layout.padding.bottom = style.cell_pad_y;
+    decl.backgroundColor = bg;
+
+    Clay__OpenElement();
+    Clay__ConfigureOpenElement(decl);
+}
+
+void ClayKit_TableCellEnd(void) { Clay__CloseElement(); }
+void ClayKit_TableRowEnd(void) { Clay__CloseElement(); }
+void ClayKit_TableEnd(void) { Clay__CloseElement(); }
+
+/* ----------------------------------------------------------------------------
  * Progress
  * ---------------------------------------------------------------------------- */
 
@@ -1832,6 +2786,224 @@ ClayKit_SliderStyle ClayKit_ComputeSliderStyle(ClayKit_Context *ctx, ClayKit_Sli
     style.corner_radius = style.track_height / 2;
 
     return style;
+}
+
+/* ----------------------------------------------------------------------------
+ * Select
+ * ---------------------------------------------------------------------------- */
+
+ClayKit_SelectStyle ClayKit_ComputeSelectStyle(ClayKit_Context *ctx, ClayKit_SelectConfig cfg) {
+    ClayKit_Theme *theme = ctx->theme_ptr;
+    ClayKit_SelectStyle style;
+
+    Clay_Color scheme_color = ClayKit_GetSchemeColor(theme, cfg.color_scheme);
+
+    style.bg_color = theme->bg;
+    style.border_color = theme->border;
+    style.text_color = cfg.disabled ? theme->muted : theme->fg;
+    style.placeholder_color = theme->muted;
+    style.dropdown_bg = theme->bg;
+    style.dropdown_border = theme->border;
+    style.option_hover_bg = claykit_color_lighten(scheme_color, 0.9f);
+    style.font_id = theme->font_id.body;
+    style.corner_radius = ClayKit_GetRadius(theme, cfg.size);
+
+    switch (cfg.size) {
+        case CLAYKIT_SIZE_XS:
+            style.padding_x = 8;
+            style.padding_y = 4;
+            style.font_size = theme->font_size.xs;
+            style.dropdown_gap = 0;
+            break;
+        case CLAYKIT_SIZE_SM:
+            style.padding_x = 10;
+            style.padding_y = 5;
+            style.font_size = theme->font_size.sm;
+            style.dropdown_gap = 0;
+            break;
+        case CLAYKIT_SIZE_LG:
+            style.padding_x = 16;
+            style.padding_y = 10;
+            style.font_size = theme->font_size.lg;
+            style.dropdown_gap = 2;
+            break;
+        case CLAYKIT_SIZE_XL:
+            style.padding_x = 20;
+            style.padding_y = 12;
+            style.font_size = theme->font_size.xl;
+            style.dropdown_gap = 4;
+            break;
+        case CLAYKIT_SIZE_MD:
+        default:
+            style.padding_x = 12;
+            style.padding_y = 8;
+            style.font_size = theme->font_size.md;
+            style.dropdown_gap = 2;
+            break;
+    }
+
+    return style;
+}
+
+bool ClayKit_SelectTrigger(ClayKit_Context *ctx, const char *id, int32_t id_len,
+                           const char *display_text, int32_t display_len,
+                           ClayKit_SelectConfig cfg) {
+    ClayKit_SelectStyle style = ClayKit_ComputeSelectStyle(ctx, cfg);
+
+    Clay__OpenElement();
+    bool hovered = Clay_Hovered();
+
+    Clay_String id_str = { false, id_len, id };
+    Clay_ElementDeclaration decl = {0};
+    decl.id = Clay__HashString(id_str, 0, 0);
+    decl.layout.sizing.width.type = CLAY__SIZING_TYPE_GROW;
+    decl.layout.sizing.height.type = CLAY__SIZING_TYPE_FIT;
+    decl.layout.padding.left = style.padding_x;
+    decl.layout.padding.right = style.padding_x;
+    decl.layout.padding.top = style.padding_y;
+    decl.layout.padding.bottom = style.padding_y;
+    decl.layout.childGap = 8;
+    decl.layout.childAlignment.x = CLAY_ALIGN_X_LEFT;
+    decl.layout.childAlignment.y = CLAY_ALIGN_Y_CENTER;
+    decl.layout.layoutDirection = CLAY_LEFT_TO_RIGHT;
+    decl.backgroundColor = hovered && !cfg.disabled
+        ? claykit_color_darken(style.bg_color, 0.03f)
+        : style.bg_color;
+    decl.cornerRadius.topLeft = (float)style.corner_radius;
+    decl.cornerRadius.topRight = (float)style.corner_radius;
+    decl.cornerRadius.bottomLeft = (float)style.corner_radius;
+    decl.cornerRadius.bottomRight = (float)style.corner_radius;
+    decl.border.color = style.border_color;
+    decl.border.width.left = 1;
+    decl.border.width.right = 1;
+    decl.border.width.top = 1;
+    decl.border.width.bottom = 1;
+
+    Clay__ConfigureOpenElement(decl);
+
+    /* Display text (or placeholder) - grows to push arrow right */
+    {
+        Clay_ElementDeclaration text_wrapper = {0};
+        text_wrapper.layout.sizing.width.type = CLAY__SIZING_TYPE_GROW;
+        text_wrapper.layout.sizing.height.type = CLAY__SIZING_TYPE_FIT;
+
+        Clay__OpenElement();
+        Clay__ConfigureOpenElement(text_wrapper);
+
+        if (display_text != NULL && display_len > 0) {
+            Clay_String text_str = { false, display_len, display_text };
+            Clay_TextElementConfig text_cfg = {0};
+            text_cfg.fontSize = style.font_size;
+            text_cfg.textColor = style.text_color;
+            text_cfg.fontId = style.font_id;
+            text_cfg.wrapMode = CLAY_TEXT_WRAP_NONE;
+            Clay__OpenTextElement(text_str, Clay__StoreTextElementConfig(text_cfg));
+        } else {
+            Clay_String placeholder = { false, 9, "Select..." };
+            Clay_TextElementConfig text_cfg = {0};
+            text_cfg.fontSize = style.font_size;
+            text_cfg.textColor = style.placeholder_color;
+            text_cfg.fontId = style.font_id;
+            text_cfg.wrapMode = CLAY_TEXT_WRAP_NONE;
+            Clay__OpenTextElement(placeholder, Clay__StoreTextElementConfig(text_cfg));
+        }
+
+        Clay__CloseElement();
+    }
+
+    /* Down arrow indicator */
+    {
+        Clay_String arrow = { false, 3, "\xe2\x96\xbc" }; /* Unicode U+25BC BLACK DOWN-POINTING TRIANGLE */
+        Clay_TextElementConfig arrow_cfg = {0};
+        arrow_cfg.fontSize = style.font_size > 4 ? style.font_size - 4 : style.font_size;
+        arrow_cfg.textColor = style.text_color;
+        arrow_cfg.fontId = style.font_id;
+        Clay__OpenTextElement(arrow, Clay__StoreTextElementConfig(arrow_cfg));
+    }
+
+    Clay__CloseElement();
+    return hovered && !cfg.disabled;
+}
+
+void ClayKit_SelectDropdownBegin(ClayKit_Context *ctx, const char *id, int32_t id_len,
+                                 ClayKit_SelectConfig cfg) {
+    ClayKit_SelectStyle style = ClayKit_ComputeSelectStyle(ctx, cfg);
+
+    Clay_String id_str = { false, id_len, id };
+    Clay_ElementDeclaration decl = {0};
+    decl.id = Clay__HashString(id_str, 0, 0);
+    decl.layout.sizing.width.type = CLAY__SIZING_TYPE_GROW;
+    decl.layout.sizing.height.type = CLAY__SIZING_TYPE_FIT;
+    decl.layout.padding.left = 4;
+    decl.layout.padding.right = 4;
+    decl.layout.padding.top = 4;
+    decl.layout.padding.bottom = 4;
+    decl.layout.childGap = style.dropdown_gap;
+    decl.layout.layoutDirection = CLAY_TOP_TO_BOTTOM;
+    decl.backgroundColor = style.dropdown_bg;
+    decl.cornerRadius.topLeft = (float)style.corner_radius;
+    decl.cornerRadius.topRight = (float)style.corner_radius;
+    decl.cornerRadius.bottomLeft = (float)style.corner_radius;
+    decl.cornerRadius.bottomRight = (float)style.corner_radius;
+    decl.border.color = style.dropdown_border;
+    decl.border.width.left = 1;
+    decl.border.width.right = 1;
+    decl.border.width.top = 1;
+    decl.border.width.bottom = 1;
+    decl.floating.attachTo = CLAY_ATTACH_TO_PARENT;
+    decl.floating.attachPoints.element = CLAY_ATTACH_POINT_LEFT_TOP;
+    decl.floating.attachPoints.parent = CLAY_ATTACH_POINT_LEFT_BOTTOM;
+    decl.floating.zIndex = 100;
+    decl.floating.offset.y = 4;
+    decl.floating.pointerCaptureMode = CLAY_POINTER_CAPTURE_MODE_CAPTURE;
+
+    Clay__OpenElement();
+    Clay__ConfigureOpenElement(decl);
+}
+
+bool ClayKit_SelectOption(ClayKit_Context *ctx, const char *text, int32_t text_len,
+                          bool is_selected, ClayKit_SelectConfig cfg) {
+    ClayKit_SelectStyle style = ClayKit_ComputeSelectStyle(ctx, cfg);
+
+    Clay__OpenElement();
+    bool hovered = Clay_Hovered();
+
+    Clay_Color bg = (Clay_Color){ 0, 0, 0, 0 };
+    if (is_selected) {
+        bg = claykit_color_lighten(ClayKit_GetSchemeColor(ctx->theme_ptr, cfg.color_scheme), 0.85f);
+    } else if (hovered) {
+        bg = style.option_hover_bg;
+    }
+
+    Clay_ElementDeclaration decl = {0};
+    decl.layout.sizing.width.type = CLAY__SIZING_TYPE_GROW;
+    decl.layout.sizing.height.type = CLAY__SIZING_TYPE_FIT;
+    decl.layout.padding.left = style.padding_x;
+    decl.layout.padding.right = style.padding_x;
+    decl.layout.padding.top = style.padding_y > 2 ? style.padding_y - 2 : style.padding_y;
+    decl.layout.padding.bottom = style.padding_y > 2 ? style.padding_y - 2 : style.padding_y;
+    decl.backgroundColor = bg;
+    decl.cornerRadius.topLeft = (float)(style.corner_radius > 2 ? style.corner_radius - 2 : style.corner_radius);
+    decl.cornerRadius.topRight = decl.cornerRadius.topLeft;
+    decl.cornerRadius.bottomLeft = decl.cornerRadius.topLeft;
+    decl.cornerRadius.bottomRight = decl.cornerRadius.topLeft;
+
+    Clay__ConfigureOpenElement(decl);
+
+    Clay_String text_str = { false, text_len, text };
+    Clay_TextElementConfig text_cfg = {0};
+    text_cfg.fontSize = style.font_size;
+    text_cfg.textColor = style.text_color;
+    text_cfg.fontId = style.font_id;
+    text_cfg.wrapMode = CLAY_TEXT_WRAP_NONE;
+    Clay__OpenTextElement(text_str, Clay__StoreTextElementConfig(text_cfg));
+
+    Clay__CloseElement();
+    return hovered;
+}
+
+void ClayKit_SelectDropdownEnd(void) {
+    Clay__CloseElement();
 }
 
 /* ----------------------------------------------------------------------------
@@ -2080,6 +3252,315 @@ ClayKit_ModalStyle ClayKit_ComputeModalStyle(ClayKit_Context *ctx, ClayKit_Modal
 }
 
 /* ----------------------------------------------------------------------------
+ * Spinner
+ * ---------------------------------------------------------------------------- */
+
+ClayKit_SpinnerStyle ClayKit_ComputeSpinnerStyle(ClayKit_Context *ctx, ClayKit_SpinnerConfig cfg) {
+    ClayKit_Theme *theme = ctx->theme_ptr;
+    ClayKit_SpinnerStyle style;
+
+    style.color = ClayKit_GetSchemeColor(theme, cfg.color_scheme);
+    style.track_color = claykit_color_lighten(theme->border, 0.5f);
+    style.speed = cfg.speed > 0.0f ? cfg.speed : 1.0f;
+
+    switch (cfg.size) {
+        case CLAYKIT_SIZE_XS:
+            style.diameter = 16;
+            style.thickness = 2;
+            break;
+        case CLAYKIT_SIZE_SM:
+            style.diameter = 24;
+            style.thickness = 3;
+            break;
+        case CLAYKIT_SIZE_LG:
+            style.diameter = 48;
+            style.thickness = 5;
+            break;
+        case CLAYKIT_SIZE_XL:
+            style.diameter = 64;
+            style.thickness = 6;
+            break;
+        case CLAYKIT_SIZE_MD:
+        default:
+            style.diameter = 32;
+            style.thickness = 4;
+            break;
+    }
+
+    return style;
+}
+
+float ClayKit_SpinnerAngle(ClayKit_Context *ctx, ClayKit_SpinnerConfig cfg) {
+    float speed = cfg.speed > 0.0f ? cfg.speed : 1.0f;
+    float angle = ctx->cursor_blink_time * speed * 360.0f;
+    /* Normalize to 0-360 */
+    angle = angle - (float)((int)(angle / 360.0f)) * 360.0f;
+    if (angle < 0.0f) angle += 360.0f;
+    return angle;
+}
+
+void ClayKit_Spinner(ClayKit_Context *ctx, ClayKit_SpinnerConfig cfg) {
+    ClayKit_SpinnerStyle style = ClayKit_ComputeSpinnerStyle(ctx, cfg);
+
+    /* Render as a fixed-size circular element.
+     * The track circle is the background, the spinner arc must be drawn by the renderer.
+     * We render two concentric circles to approximate: outer = track, inner = transparent hole. */
+
+    /* Outer circle (track) */
+    float radius = (float)(style.diameter / 2);
+
+    Clay_ElementDeclaration decl = {0};
+    decl.layout.sizing.width.type = CLAY__SIZING_TYPE_FIXED;
+    decl.layout.sizing.width.size.minMax.min = (float)style.diameter;
+    decl.layout.sizing.width.size.minMax.max = (float)style.diameter;
+    decl.layout.sizing.height.type = CLAY__SIZING_TYPE_FIXED;
+    decl.layout.sizing.height.size.minMax.min = (float)style.diameter;
+    decl.layout.sizing.height.size.minMax.max = (float)style.diameter;
+    decl.layout.childAlignment.x = CLAY_ALIGN_X_CENTER;
+    decl.layout.childAlignment.y = CLAY_ALIGN_Y_CENTER;
+    decl.backgroundColor = style.track_color;
+    decl.cornerRadius.topLeft = radius;
+    decl.cornerRadius.topRight = radius;
+    decl.cornerRadius.bottomLeft = radius;
+    decl.cornerRadius.bottomRight = radius;
+
+    Clay__OpenElement();
+    Clay__ConfigureOpenElement(decl);
+
+    /* Inner hole (transparent center to create ring appearance) */
+    {
+        uint16_t inner_diameter = style.diameter > (style.thickness * 2) ? style.diameter - (style.thickness * 2) : 2;
+        float inner_radius = (float)(inner_diameter / 2);
+
+        Clay_ElementDeclaration inner_decl = {0};
+        inner_decl.layout.sizing.width.type = CLAY__SIZING_TYPE_FIXED;
+        inner_decl.layout.sizing.width.size.minMax.min = (float)inner_diameter;
+        inner_decl.layout.sizing.width.size.minMax.max = (float)inner_diameter;
+        inner_decl.layout.sizing.height.type = CLAY__SIZING_TYPE_FIXED;
+        inner_decl.layout.sizing.height.size.minMax.min = (float)inner_diameter;
+        inner_decl.layout.sizing.height.size.minMax.max = (float)inner_diameter;
+        inner_decl.backgroundColor = ctx->theme_ptr->bg;
+        inner_decl.cornerRadius.topLeft = inner_radius;
+        inner_decl.cornerRadius.topRight = inner_radius;
+        inner_decl.cornerRadius.bottomLeft = inner_radius;
+        inner_decl.cornerRadius.bottomRight = inner_radius;
+
+        Clay__OpenElement();
+        Clay__ConfigureOpenElement(inner_decl);
+        Clay__CloseElement();
+    }
+
+    Clay__CloseElement();
+}
+
+/* ----------------------------------------------------------------------------
+ * Drawer
+ * ---------------------------------------------------------------------------- */
+
+ClayKit_DrawerStyle ClayKit_ComputeDrawerStyle(ClayKit_Context *ctx, ClayKit_DrawerConfig cfg) {
+    ClayKit_Theme *theme = ctx->theme_ptr;
+    ClayKit_DrawerStyle style;
+
+    style.backdrop_color = (Clay_Color){ 0, 0, 0, 128 };
+    style.bg_color = theme->bg;
+    style.border_color = theme->border;
+    style.padding = theme->spacing.lg;
+    style.size = cfg.size > 0 ? cfg.size : 300;
+    style.z_index = cfg.z_index > 0 ? cfg.z_index : 1000;
+
+    return style;
+}
+
+bool ClayKit_DrawerBegin(ClayKit_Context *ctx, const char *id, int32_t id_len, ClayKit_DrawerConfig cfg) {
+    ClayKit_DrawerStyle style = ClayKit_ComputeDrawerStyle(ctx, cfg);
+
+    char backdrop_id_buf[128];
+    int32_t backdrop_id_len = 0;
+    {
+        /* Build backdrop ID: id + "Backdrop" */
+        int32_t copy_len = id_len < 110 ? id_len : 110;
+        int32_t i;
+        for (i = 0; i < copy_len; i++) backdrop_id_buf[i] = id[i];
+        backdrop_id_buf[copy_len] = 'B'; backdrop_id_buf[copy_len+1] = 'k';
+        backdrop_id_buf[copy_len+2] = 'd'; backdrop_id_buf[copy_len+3] = 'p';
+        backdrop_id_len = copy_len + 4;
+    }
+
+    /* Backdrop - full screen overlay */
+    Clay_String backdrop_str = { false, backdrop_id_len, backdrop_id_buf };
+    Clay_ElementDeclaration backdrop_decl = {0};
+    backdrop_decl.id = Clay__HashString(backdrop_str, 0, 0);
+    backdrop_decl.layout.sizing.width.type = CLAY__SIZING_TYPE_GROW;
+    backdrop_decl.layout.sizing.height.type = CLAY__SIZING_TYPE_GROW;
+    backdrop_decl.backgroundColor = style.backdrop_color;
+    backdrop_decl.floating.attachTo = CLAY_ATTACH_TO_ROOT;
+    backdrop_decl.floating.attachPoints.element = CLAY_ATTACH_POINT_LEFT_TOP;
+    backdrop_decl.floating.attachPoints.parent = CLAY_ATTACH_POINT_LEFT_TOP;
+    backdrop_decl.floating.zIndex = (int16_t)style.z_index;
+    backdrop_decl.floating.pointerCaptureMode = CLAY_POINTER_CAPTURE_MODE_CAPTURE;
+
+    /* Set child alignment based on drawer side */
+    switch (cfg.side) {
+        case CLAYKIT_DRAWER_LEFT:
+            backdrop_decl.layout.childAlignment.x = CLAY_ALIGN_X_LEFT;
+            backdrop_decl.layout.childAlignment.y = CLAY_ALIGN_Y_TOP;
+            break;
+        case CLAYKIT_DRAWER_RIGHT:
+            backdrop_decl.layout.childAlignment.x = CLAY_ALIGN_X_RIGHT;
+            backdrop_decl.layout.childAlignment.y = CLAY_ALIGN_Y_TOP;
+            break;
+        case CLAYKIT_DRAWER_TOP:
+            backdrop_decl.layout.childAlignment.x = CLAY_ALIGN_X_LEFT;
+            backdrop_decl.layout.childAlignment.y = CLAY_ALIGN_Y_TOP;
+            break;
+        case CLAYKIT_DRAWER_BOTTOM:
+            backdrop_decl.layout.childAlignment.x = CLAY_ALIGN_X_LEFT;
+            backdrop_decl.layout.childAlignment.y = CLAY_ALIGN_Y_BOTTOM;
+            break;
+    }
+
+    Clay__OpenElement();
+    bool backdrop_hovered = Clay_Hovered();
+    Clay__ConfigureOpenElement(backdrop_decl);
+
+    /* Drawer panel */
+    Clay_String panel_str = { false, id_len, id };
+    Clay_ElementDeclaration panel_decl = {0};
+    panel_decl.id = Clay__HashString(panel_str, 0, 0);
+    panel_decl.layout.padding.left = style.padding;
+    panel_decl.layout.padding.right = style.padding;
+    panel_decl.layout.padding.top = style.padding;
+    panel_decl.layout.padding.bottom = style.padding;
+    panel_decl.layout.childGap = 16;
+    panel_decl.layout.layoutDirection = CLAY_TOP_TO_BOTTOM;
+    panel_decl.backgroundColor = style.bg_color;
+
+    /* Size depends on side */
+    if (cfg.side == CLAYKIT_DRAWER_LEFT || cfg.side == CLAYKIT_DRAWER_RIGHT) {
+        panel_decl.layout.sizing.width.type = CLAY__SIZING_TYPE_FIXED;
+        panel_decl.layout.sizing.width.size.minMax.min = (float)style.size;
+        panel_decl.layout.sizing.width.size.minMax.max = (float)style.size;
+        panel_decl.layout.sizing.height.type = CLAY__SIZING_TYPE_GROW;
+    } else {
+        panel_decl.layout.sizing.width.type = CLAY__SIZING_TYPE_GROW;
+        panel_decl.layout.sizing.height.type = CLAY__SIZING_TYPE_FIXED;
+        panel_decl.layout.sizing.height.size.minMax.min = (float)style.size;
+        panel_decl.layout.sizing.height.size.minMax.max = (float)style.size;
+    }
+
+    /* Border on the inner edge */
+    switch (cfg.side) {
+        case CLAYKIT_DRAWER_LEFT:
+            panel_decl.border.color = style.border_color;
+            panel_decl.border.width.right = 1;
+            break;
+        case CLAYKIT_DRAWER_RIGHT:
+            panel_decl.border.color = style.border_color;
+            panel_decl.border.width.left = 1;
+            break;
+        case CLAYKIT_DRAWER_TOP:
+            panel_decl.border.color = style.border_color;
+            panel_decl.border.width.bottom = 1;
+            break;
+        case CLAYKIT_DRAWER_BOTTOM:
+            panel_decl.border.color = style.border_color;
+            panel_decl.border.width.top = 1;
+            break;
+    }
+
+    Clay__OpenElement();
+    bool panel_hovered = Clay_Hovered();
+    Clay__ConfigureOpenElement(panel_decl);
+
+    /* Return true if backdrop (not panel) is hovered - for close-on-backdrop logic */
+    return backdrop_hovered && !panel_hovered;
+}
+
+void ClayKit_DrawerEnd(void) {
+    Clay__CloseElement(); /* panel */
+    Clay__CloseElement(); /* backdrop */
+}
+
+/* ----------------------------------------------------------------------------
+ * Popover
+ * ---------------------------------------------------------------------------- */
+
+ClayKit_PopoverStyle ClayKit_ComputePopoverStyle(ClayKit_Context *ctx, ClayKit_PopoverConfig cfg) {
+    ClayKit_Theme *theme = ctx->theme_ptr;
+    ClayKit_PopoverStyle style;
+
+    style.bg_color = theme->bg;
+    style.border_color = theme->border;
+    style.padding = theme->spacing.md;
+    style.corner_radius = theme->radius.md;
+    style.z_index = cfg.z_index > 0 ? cfg.z_index : 50;
+
+    return style;
+}
+
+void ClayKit_PopoverBegin(ClayKit_Context *ctx, const char *id, int32_t id_len, ClayKit_PopoverConfig cfg) {
+    ClayKit_PopoverStyle style = ClayKit_ComputePopoverStyle(ctx, cfg);
+
+    Clay_String id_str = { false, id_len, id };
+    Clay_ElementDeclaration decl = {0};
+    decl.id = Clay__HashString(id_str, 0, 0);
+    decl.layout.sizing.width.type = CLAY__SIZING_TYPE_FIT;
+    decl.layout.sizing.height.type = CLAY__SIZING_TYPE_FIT;
+    decl.layout.padding.left = style.padding;
+    decl.layout.padding.right = style.padding;
+    decl.layout.padding.top = style.padding;
+    decl.layout.padding.bottom = style.padding;
+    decl.layout.childGap = 8;
+    decl.layout.layoutDirection = CLAY_TOP_TO_BOTTOM;
+    decl.backgroundColor = style.bg_color;
+    decl.cornerRadius.topLeft = (float)style.corner_radius;
+    decl.cornerRadius.topRight = (float)style.corner_radius;
+    decl.cornerRadius.bottomLeft = (float)style.corner_radius;
+    decl.cornerRadius.bottomRight = (float)style.corner_radius;
+    decl.border.color = style.border_color;
+    decl.border.width.left = 1;
+    decl.border.width.right = 1;
+    decl.border.width.top = 1;
+    decl.border.width.bottom = 1;
+
+    /* Floating attached to parent */
+    decl.floating.attachTo = CLAY_ATTACH_TO_PARENT;
+    decl.floating.zIndex = (int16_t)style.z_index;
+    decl.floating.pointerCaptureMode = CLAY_POINTER_CAPTURE_MODE_CAPTURE;
+
+    /* Position depends on config */
+    switch (cfg.position) {
+        case CLAYKIT_POPOVER_TOP:
+            decl.floating.attachPoints.element = CLAY_ATTACH_POINT_LEFT_BOTTOM;
+            decl.floating.attachPoints.parent = CLAY_ATTACH_POINT_LEFT_TOP;
+            decl.floating.offset.y = -4;
+            break;
+        case CLAYKIT_POPOVER_BOTTOM:
+            decl.floating.attachPoints.element = CLAY_ATTACH_POINT_LEFT_TOP;
+            decl.floating.attachPoints.parent = CLAY_ATTACH_POINT_LEFT_BOTTOM;
+            decl.floating.offset.y = 4;
+            break;
+        case CLAYKIT_POPOVER_LEFT:
+            decl.floating.attachPoints.element = CLAY_ATTACH_POINT_RIGHT_TOP;
+            decl.floating.attachPoints.parent = CLAY_ATTACH_POINT_LEFT_TOP;
+            decl.floating.offset.x = -4;
+            break;
+        case CLAYKIT_POPOVER_RIGHT:
+            decl.floating.attachPoints.element = CLAY_ATTACH_POINT_LEFT_TOP;
+            decl.floating.attachPoints.parent = CLAY_ATTACH_POINT_RIGHT_TOP;
+            decl.floating.offset.x = 4;
+            break;
+    }
+
+    Clay__OpenElement();
+    Clay__ConfigureOpenElement(decl);
+}
+
+void ClayKit_PopoverEnd(void) {
+    Clay__CloseElement();
+}
+
+/* ----------------------------------------------------------------------------
  * Button Rendering
  * ---------------------------------------------------------------------------- */
 
@@ -2186,6 +3667,70 @@ bool ClayKit_Checkbox(ClayKit_Context *ctx, bool checked, ClayKit_CheckboxConfig
         inner_decl.cornerRadius.topRight = 2;
         inner_decl.cornerRadius.bottomLeft = 2;
         inner_decl.cornerRadius.bottomRight = 2;
+
+        Clay__OpenElement();
+        Clay__ConfigureOpenElement(inner_decl);
+        Clay__CloseElement();
+    }
+
+    Clay__CloseElement();
+    return hovered;
+}
+
+/* ----------------------------------------------------------------------------
+ * Radio Rendering
+ * ---------------------------------------------------------------------------- */
+
+bool ClayKit_Radio(ClayKit_Context *ctx, bool selected, ClayKit_RadioConfig cfg) {
+    uint16_t size = ClayKit_RadioSize(ctx, cfg.size);
+    float radius = (float)(size / 2);
+
+    Clay__OpenElement();
+    bool hovered = Clay_Hovered();
+
+    Clay_Color bg_color = ClayKit_RadioBgColor(ctx, cfg, selected, hovered);
+    Clay_Color border_color = ClayKit_RadioBorderColor(ctx, cfg, selected);
+
+    Clay_ElementDeclaration decl = {0};
+    decl.layout.sizing.width.type = CLAY__SIZING_TYPE_FIXED;
+    decl.layout.sizing.width.size.minMax.min = (float)size;
+    decl.layout.sizing.width.size.minMax.max = (float)size;
+    decl.layout.sizing.height.type = CLAY__SIZING_TYPE_FIXED;
+    decl.layout.sizing.height.size.minMax.min = (float)size;
+    decl.layout.sizing.height.size.minMax.max = (float)size;
+    decl.layout.childAlignment.x = CLAY_ALIGN_X_CENTER;
+    decl.layout.childAlignment.y = CLAY_ALIGN_Y_CENTER;
+    decl.backgroundColor = bg_color;
+    /* Circular: corner radius = size/2 */
+    decl.cornerRadius.topLeft = radius;
+    decl.cornerRadius.topRight = radius;
+    decl.cornerRadius.bottomLeft = radius;
+    decl.cornerRadius.bottomRight = radius;
+    decl.border.color = border_color;
+    decl.border.width.left = 2;
+    decl.border.width.right = 2;
+    decl.border.width.top = 2;
+    decl.border.width.bottom = 2;
+
+    Clay__ConfigureOpenElement(decl);
+
+    /* Inner indicator circle when selected */
+    if (selected) {
+        uint16_t inner_size = size > 10 ? size - 10 : 4;
+        float inner_radius = (float)(inner_size / 2);
+
+        Clay_ElementDeclaration inner_decl = {0};
+        inner_decl.layout.sizing.width.type = CLAY__SIZING_TYPE_FIXED;
+        inner_decl.layout.sizing.width.size.minMax.min = (float)inner_size;
+        inner_decl.layout.sizing.width.size.minMax.max = (float)inner_size;
+        inner_decl.layout.sizing.height.type = CLAY__SIZING_TYPE_FIXED;
+        inner_decl.layout.sizing.height.size.minMax.min = (float)inner_size;
+        inner_decl.layout.sizing.height.size.minMax.max = (float)inner_size;
+        inner_decl.backgroundColor = (Clay_Color){ 255, 255, 255, 255 };
+        inner_decl.cornerRadius.topLeft = inner_radius;
+        inner_decl.cornerRadius.topRight = inner_radius;
+        inner_decl.cornerRadius.bottomLeft = inner_radius;
+        inner_decl.cornerRadius.bottomRight = inner_radius;
 
         Clay__OpenElement();
         Clay__ConfigureOpenElement(inner_decl);
@@ -2509,6 +4054,565 @@ bool ClayKit_TextInput(ClayKit_Context *ctx, const char *id, int32_t id_len,
     Clay__CloseElement(); /* inner */
     Clay__CloseElement(); /* outer */
     return hovered;
+}
+
+/* ----------------------------------------------------------------------------
+ * Link
+ * ---------------------------------------------------------------------------- */
+
+ClayKit_LinkStyle ClayKit_ComputeLinkStyle(ClayKit_Context *ctx, ClayKit_LinkConfig cfg) {
+    ClayKit_Theme *theme = ctx->theme_ptr;
+    ClayKit_LinkStyle style;
+
+    Clay_Color scheme_color = ClayKit_GetSchemeColor(theme, cfg.color_scheme);
+
+    style.text_color = scheme_color;
+    style.hover_color = claykit_color_darken(scheme_color, 0.15f);
+    style.disabled_color = theme->muted;
+    style.font_size = ClayKit_GetFontSize(theme, cfg.size);
+    style.font_id = theme->font_id.body;
+    style.underline_height = 1;
+
+    return style;
+}
+
+bool ClayKit_Link(ClayKit_Context *ctx, const char *text, int32_t text_len, ClayKit_LinkConfig cfg) {
+    ClayKit_LinkStyle style = ClayKit_ComputeLinkStyle(ctx, cfg);
+
+    Clay__OpenElement();
+    bool hovered = Clay_Hovered();
+
+    Clay_ElementDeclaration decl = {0};
+    decl.layout.sizing.width.type = CLAY__SIZING_TYPE_FIT;
+    decl.layout.sizing.height.type = CLAY__SIZING_TYPE_FIT;
+    decl.layout.layoutDirection = CLAY_TOP_TO_BOTTOM;
+
+    Clay__ConfigureOpenElement(decl);
+
+    /* Text */
+    Clay_Color text_color;
+    if (cfg.disabled) {
+        text_color = style.disabled_color;
+    } else if (hovered) {
+        text_color = style.hover_color;
+    } else {
+        text_color = style.text_color;
+    }
+
+    Clay_String clay_text = { false, text_len, text };
+    Clay_TextElementConfig text_config = {0};
+    text_config.fontSize = style.font_size;
+    text_config.fontId = style.font_id;
+    text_config.textColor = text_color;
+    text_config.wrapMode = CLAY_TEXT_WRAP_NONE;
+    Clay__OpenTextElement(clay_text, Clay__StoreTextElementConfig(text_config));
+
+    /* Underline */
+    bool show_underline = false;
+    if (!cfg.disabled) {
+        switch (cfg.variant) {
+            case CLAYKIT_LINK_UNDERLINE:
+                show_underline = true;
+                break;
+            case CLAYKIT_LINK_HOVER_UNDERLINE:
+                show_underline = hovered;
+                break;
+            case CLAYKIT_LINK_NONE:
+            default:
+                show_underline = false;
+                break;
+        }
+    }
+
+    if (show_underline) {
+        Clay_ElementDeclaration underline_decl = {0};
+        underline_decl.layout.sizing.width.type = CLAY__SIZING_TYPE_GROW;
+        underline_decl.layout.sizing.height.type = CLAY__SIZING_TYPE_FIXED;
+        underline_decl.layout.sizing.height.size.minMax.min = (float)style.underline_height;
+        underline_decl.layout.sizing.height.size.minMax.max = (float)style.underline_height;
+        underline_decl.backgroundColor = text_color;
+
+        Clay__OpenElement();
+        Clay__ConfigureOpenElement(underline_decl);
+        Clay__CloseElement();
+    }
+
+    Clay__CloseElement();
+    return hovered && !cfg.disabled;
+}
+
+/* ----------------------------------------------------------------------------
+ * Breadcrumb
+ * ---------------------------------------------------------------------------- */
+
+ClayKit_BreadcrumbStyle ClayKit_ComputeBreadcrumbStyle(ClayKit_Context *ctx, ClayKit_BreadcrumbConfig cfg) {
+    ClayKit_Theme *theme = ctx->theme_ptr;
+    ClayKit_BreadcrumbStyle style;
+
+    Clay_Color scheme_color = ClayKit_GetSchemeColor(theme, cfg.color_scheme);
+
+    style.link_color = scheme_color;
+    style.hover_color = claykit_color_darken(scheme_color, 0.15f);
+    style.current_color = theme->fg;
+    style.separator_color = theme->muted;
+    style.font_size = ClayKit_GetFontSize(theme, cfg.size);
+    style.font_id = theme->font_id.body;
+
+    switch (cfg.size) {
+        case CLAYKIT_SIZE_XS: style.gap = 4; break;
+        case CLAYKIT_SIZE_SM: style.gap = 6; break;
+        case CLAYKIT_SIZE_LG: style.gap = 10; break;
+        case CLAYKIT_SIZE_XL: style.gap = 12; break;
+        case CLAYKIT_SIZE_MD:
+        default: style.gap = 8; break;
+    }
+
+    return style;
+}
+
+void ClayKit_BreadcrumbBegin(ClayKit_Context *ctx, ClayKit_BreadcrumbConfig cfg) {
+    ClayKit_BreadcrumbStyle style = ClayKit_ComputeBreadcrumbStyle(ctx, cfg);
+
+    Clay_ElementDeclaration decl = {0};
+    decl.layout.sizing.width.type = CLAY__SIZING_TYPE_FIT;
+    decl.layout.sizing.height.type = CLAY__SIZING_TYPE_FIT;
+    decl.layout.childGap = style.gap;
+    decl.layout.layoutDirection = CLAY_LEFT_TO_RIGHT;
+    decl.layout.childAlignment.y = CLAY_ALIGN_Y_CENTER;
+
+    Clay__OpenElement();
+    Clay__ConfigureOpenElement(decl);
+}
+
+bool ClayKit_BreadcrumbItem(ClayKit_Context *ctx, const char *text, int32_t text_len, bool is_current, ClayKit_BreadcrumbConfig cfg) {
+    ClayKit_BreadcrumbStyle style = ClayKit_ComputeBreadcrumbStyle(ctx, cfg);
+
+    Clay__OpenElement();
+    bool hovered = Clay_Hovered();
+
+    Clay_ElementDeclaration decl = {0};
+    decl.layout.sizing.width.type = CLAY__SIZING_TYPE_FIT;
+    decl.layout.sizing.height.type = CLAY__SIZING_TYPE_FIT;
+
+    Clay__ConfigureOpenElement(decl);
+
+    Clay_Color text_color;
+    if (is_current) {
+        text_color = style.current_color;
+    } else if (hovered) {
+        text_color = style.hover_color;
+    } else {
+        text_color = style.link_color;
+    }
+
+    Clay_String clay_text = { false, text_len, text };
+    Clay_TextElementConfig text_config = {0};
+    text_config.fontSize = style.font_size;
+    text_config.fontId = style.font_id;
+    text_config.textColor = text_color;
+    text_config.wrapMode = CLAY_TEXT_WRAP_NONE;
+    Clay__OpenTextElement(clay_text, Clay__StoreTextElementConfig(text_config));
+
+    Clay__CloseElement();
+    return hovered && !is_current;
+}
+
+void ClayKit_BreadcrumbSeparator(ClayKit_Context *ctx, ClayKit_BreadcrumbConfig cfg) {
+    ClayKit_BreadcrumbStyle style = ClayKit_ComputeBreadcrumbStyle(ctx, cfg);
+
+    const char *sep = (cfg.separator != NULL && cfg.separator_len > 0) ? cfg.separator : "/";
+    int32_t sep_len = (cfg.separator != NULL && cfg.separator_len > 0) ? cfg.separator_len : 1;
+
+    Clay_String sep_str = { false, sep_len, sep };
+    Clay_TextElementConfig text_config = {0};
+    text_config.fontSize = style.font_size;
+    text_config.fontId = style.font_id;
+    text_config.textColor = style.separator_color;
+    text_config.wrapMode = CLAY_TEXT_WRAP_NONE;
+    Clay__OpenTextElement(sep_str, Clay__StoreTextElementConfig(text_config));
+}
+
+void ClayKit_BreadcrumbEnd(void) {
+    Clay__CloseElement();
+}
+
+/* ----------------------------------------------------------------------------
+ * Accordion
+ * ---------------------------------------------------------------------------- */
+
+ClayKit_AccordionStyle ClayKit_ComputeAccordionStyle(ClayKit_Context *ctx, ClayKit_AccordionConfig cfg) {
+    ClayKit_Theme *theme = ctx->theme_ptr;
+    ClayKit_AccordionStyle style;
+
+    Clay_Color scheme_color = ClayKit_GetSchemeColor(theme, cfg.color_scheme);
+
+    style.header_bg = theme->bg;
+    style.header_hover_bg = claykit_color_darken(theme->bg, 0.03f);
+    style.header_text = theme->fg;
+    style.active_accent = scheme_color;
+    style.content_bg = theme->bg;
+    style.border_color = theme->border;
+    style.font_id = theme->font_id.body;
+
+    switch (cfg.size) {
+        case CLAYKIT_SIZE_XS:
+            style.padding_x = 8;
+            style.padding_y = 6;
+            style.content_padding = 8;
+            style.font_size = theme->font_size.xs;
+            break;
+        case CLAYKIT_SIZE_SM:
+            style.padding_x = 10;
+            style.padding_y = 8;
+            style.content_padding = 10;
+            style.font_size = theme->font_size.sm;
+            break;
+        case CLAYKIT_SIZE_LG:
+            style.padding_x = 16;
+            style.padding_y = 14;
+            style.content_padding = 16;
+            style.font_size = theme->font_size.lg;
+            break;
+        case CLAYKIT_SIZE_XL:
+            style.padding_x = 20;
+            style.padding_y = 16;
+            style.content_padding = 20;
+            style.font_size = theme->font_size.xl;
+            break;
+        case CLAYKIT_SIZE_MD:
+        default:
+            style.padding_x = 12;
+            style.padding_y = 10;
+            style.content_padding = 12;
+            style.font_size = theme->font_size.md;
+            break;
+    }
+
+    style.border_width = 1;
+
+    if (cfg.variant == CLAYKIT_ACCORDION_SEPARATED) {
+        style.corner_radius = ClayKit_GetRadius(theme, cfg.size);
+        style.gap = 8;
+    } else {
+        style.corner_radius = 0;
+        style.gap = 0;
+    }
+
+    return style;
+}
+
+void ClayKit_AccordionBegin(ClayKit_Context *ctx, ClayKit_AccordionConfig cfg) {
+    ClayKit_AccordionStyle style = ClayKit_ComputeAccordionStyle(ctx, cfg);
+
+    Clay_ElementDeclaration decl = {0};
+    decl.layout.sizing.width.type = CLAY__SIZING_TYPE_GROW;
+    decl.layout.sizing.height.type = CLAY__SIZING_TYPE_FIT;
+    decl.layout.childGap = style.gap;
+    decl.layout.layoutDirection = CLAY_TOP_TO_BOTTOM;
+
+    /* Bordered: outer border, no corner radius (children have their own bg
+       so rounding the container would show corners behind them) */
+    if (cfg.variant == CLAYKIT_ACCORDION_BORDERED) {
+        decl.border.color = style.border_color;
+        decl.border.width.left = style.border_width;
+        decl.border.width.right = style.border_width;
+        decl.border.width.top = style.border_width;
+        decl.border.width.bottom = style.border_width;
+    }
+
+    Clay__OpenElement();
+    Clay__ConfigureOpenElement(decl);
+}
+
+void ClayKit_AccordionItemBegin(ClayKit_Context *ctx, bool is_open, ClayKit_AccordionConfig cfg) {
+    (void)is_open;
+    ClayKit_AccordionStyle style = ClayKit_ComputeAccordionStyle(ctx, cfg);
+
+    Clay_ElementDeclaration decl = {0};
+    decl.layout.sizing.width.type = CLAY__SIZING_TYPE_GROW;
+    decl.layout.sizing.height.type = CLAY__SIZING_TYPE_FIT;
+    decl.layout.layoutDirection = CLAY_TOP_TO_BOTTOM;
+    /* No gap: header and content must be flush */
+
+    (void)style;
+    Clay__OpenElement();
+    Clay__ConfigureOpenElement(decl);
+}
+
+void ClayKit_AccordionItemEnd(void) {
+    Clay__CloseElement();
+}
+
+bool ClayKit_AccordionHeader(ClayKit_Context *ctx, const char *text, int32_t text_len, bool is_open, ClayKit_AccordionConfig cfg) {
+    ClayKit_AccordionStyle style = ClayKit_ComputeAccordionStyle(ctx, cfg);
+
+    Clay__OpenElement();
+    bool hovered = Clay_Hovered();
+
+    Clay_ElementDeclaration decl = {0};
+    decl.layout.sizing.width.type = CLAY__SIZING_TYPE_GROW;
+    decl.layout.sizing.height.type = CLAY__SIZING_TYPE_FIT;
+    decl.layout.padding.left = style.padding_x;
+    decl.layout.padding.right = style.padding_x;
+    decl.layout.padding.top = style.padding_y;
+    decl.layout.padding.bottom = style.padding_y;
+    decl.layout.childGap = 8;
+    decl.layout.layoutDirection = CLAY_LEFT_TO_RIGHT;
+    decl.layout.childAlignment.y = CLAY_ALIGN_Y_CENTER;
+    decl.backgroundColor = hovered ? style.header_hover_bg : style.header_bg;
+
+    if (cfg.variant == CLAYKIT_ACCORDION_SEPARATED) {
+        /* Separated: header carries its own border and corners */
+        decl.cornerRadius.topLeft = (float)style.corner_radius;
+        decl.cornerRadius.topRight = (float)style.corner_radius;
+        if (!is_open) {
+            decl.cornerRadius.bottomLeft = (float)style.corner_radius;
+            decl.cornerRadius.bottomRight = (float)style.corner_radius;
+        }
+        decl.border.color = style.border_color;
+        decl.border.width.left = style.border_width;
+        decl.border.width.right = style.border_width;
+        decl.border.width.top = style.border_width;
+        if (!is_open) {
+            decl.border.width.bottom = style.border_width;
+        }
+    } else {
+        /* Bordered: thin separator between items */
+        decl.border.color = style.border_color;
+        decl.border.width.bottom = style.border_width;
+    }
+
+    Clay__ConfigureOpenElement(decl);
+
+    /* Text label (grows to push chevron right) */
+    {
+        Clay_ElementDeclaration text_wrapper = {0};
+        text_wrapper.layout.sizing.width.type = CLAY__SIZING_TYPE_GROW;
+        text_wrapper.layout.sizing.height.type = CLAY__SIZING_TYPE_FIT;
+
+        Clay__OpenElement();
+        Clay__ConfigureOpenElement(text_wrapper);
+
+        Clay_String clay_text = { false, text_len, text };
+        Clay_TextElementConfig text_config = {0};
+        text_config.fontSize = style.font_size;
+        text_config.fontId = style.font_id;
+        text_config.textColor = style.header_text;
+        text_config.wrapMode = CLAY_TEXT_WRAP_NONE;
+        Clay__OpenTextElement(clay_text, Clay__StoreTextElementConfig(text_config));
+
+        Clay__CloseElement();
+    }
+
+    /* Chevron indicator */
+    {
+        /* U+25B2 BLACK UP-POINTING TRIANGLE = \xe2\x96\xb2 */
+        /* U+25BC BLACK DOWN-POINTING TRIANGLE = \xe2\x96\xbc */
+        Clay_String chevron = is_open
+            ? (Clay_String){ false, 3, "\xe2\x96\xb2" }
+            : (Clay_String){ false, 3, "\xe2\x96\xbc" };
+        Clay_TextElementConfig chevron_cfg = {0};
+        chevron_cfg.fontSize = style.font_size > 4 ? style.font_size - 4 : style.font_size;
+        chevron_cfg.fontId = style.font_id;
+        chevron_cfg.textColor = is_open ? style.active_accent : style.header_text;
+        Clay__OpenTextElement(chevron, Clay__StoreTextElementConfig(chevron_cfg));
+    }
+
+    Clay__CloseElement();
+    return hovered;
+}
+
+void ClayKit_AccordionContentBegin(ClayKit_Context *ctx, ClayKit_AccordionConfig cfg) {
+    ClayKit_AccordionStyle style = ClayKit_ComputeAccordionStyle(ctx, cfg);
+
+    Clay_ElementDeclaration decl = {0};
+    decl.layout.sizing.width.type = CLAY__SIZING_TYPE_GROW;
+    decl.layout.sizing.height.type = CLAY__SIZING_TYPE_FIT;
+    decl.layout.padding.left = style.content_padding;
+    decl.layout.padding.right = style.content_padding;
+    decl.layout.padding.top = style.content_padding;
+    decl.layout.padding.bottom = style.content_padding;
+    decl.layout.layoutDirection = CLAY_TOP_TO_BOTTOM;
+    decl.backgroundColor = style.content_bg;
+
+    if (cfg.variant == CLAYKIT_ACCORDION_SEPARATED) {
+        decl.border.color = style.border_color;
+        decl.border.width.left = style.border_width;
+        decl.border.width.right = style.border_width;
+        decl.border.width.bottom = style.border_width;
+        decl.cornerRadius.bottomLeft = (float)style.corner_radius;
+        decl.cornerRadius.bottomRight = (float)style.corner_radius;
+    }
+
+    Clay__OpenElement();
+    Clay__ConfigureOpenElement(decl);
+}
+
+void ClayKit_AccordionContentEnd(void) {
+    Clay__CloseElement();
+}
+
+void ClayKit_AccordionEnd(void) {
+    Clay__CloseElement();
+}
+
+/* ----------------------------------------------------------------------------
+ * Menu
+ * ---------------------------------------------------------------------------- */
+
+ClayKit_MenuStyle ClayKit_ComputeMenuStyle(ClayKit_Context *ctx, ClayKit_MenuConfig cfg) {
+    ClayKit_Theme *theme = ctx->theme_ptr;
+    ClayKit_MenuStyle style;
+
+    Clay_Color scheme_color = ClayKit_GetSchemeColor(theme, cfg.color_scheme);
+
+    style.bg_color = theme->bg;
+    style.border_color = theme->border;
+    style.text_color = theme->fg;
+    style.disabled_text = theme->muted;
+    style.hover_bg = claykit_color_lighten(scheme_color, 0.9f);
+    style.separator_color = theme->border;
+    style.font_id = theme->font_id.body;
+    style.corner_radius = ClayKit_GetRadius(theme, cfg.size);
+
+    switch (cfg.size) {
+        case CLAYKIT_SIZE_XS:
+            style.padding_x = 8;
+            style.padding_y = 4;
+            style.font_size = theme->font_size.xs;
+            style.item_gap = 0;
+            style.separator_height = 1;
+            style.dropdown_padding = 4;
+            break;
+        case CLAYKIT_SIZE_SM:
+            style.padding_x = 10;
+            style.padding_y = 5;
+            style.font_size = theme->font_size.sm;
+            style.item_gap = 0;
+            style.separator_height = 1;
+            style.dropdown_padding = 4;
+            break;
+        case CLAYKIT_SIZE_LG:
+            style.padding_x = 16;
+            style.padding_y = 10;
+            style.font_size = theme->font_size.lg;
+            style.item_gap = 2;
+            style.separator_height = 1;
+            style.dropdown_padding = 6;
+            break;
+        case CLAYKIT_SIZE_XL:
+            style.padding_x = 20;
+            style.padding_y = 12;
+            style.font_size = theme->font_size.xl;
+            style.item_gap = 4;
+            style.separator_height = 1;
+            style.dropdown_padding = 8;
+            break;
+        case CLAYKIT_SIZE_MD:
+        default:
+            style.padding_x = 12;
+            style.padding_y = 8;
+            style.font_size = theme->font_size.md;
+            style.item_gap = 2;
+            style.separator_height = 1;
+            style.dropdown_padding = 4;
+            break;
+    }
+
+    return style;
+}
+
+void ClayKit_MenuDropdownBegin(ClayKit_Context *ctx, const char *id, int32_t id_len, ClayKit_MenuConfig cfg) {
+    ClayKit_MenuStyle style = ClayKit_ComputeMenuStyle(ctx, cfg);
+
+    Clay_String id_str = { false, id_len, id };
+    Clay_ElementDeclaration decl = {0};
+    decl.id = Clay__HashString(id_str, 0, 0);
+    decl.layout.sizing.width.type = CLAY__SIZING_TYPE_FIT;
+    decl.layout.sizing.width.size.minMax.min = 150;
+    decl.layout.sizing.height.type = CLAY__SIZING_TYPE_FIT;
+    decl.layout.padding.left = style.dropdown_padding;
+    decl.layout.padding.right = style.dropdown_padding;
+    decl.layout.padding.top = style.dropdown_padding;
+    decl.layout.padding.bottom = style.dropdown_padding;
+    decl.layout.childGap = style.item_gap;
+    decl.layout.layoutDirection = CLAY_TOP_TO_BOTTOM;
+    decl.backgroundColor = style.bg_color;
+    decl.cornerRadius.topLeft = (float)style.corner_radius;
+    decl.cornerRadius.topRight = (float)style.corner_radius;
+    decl.cornerRadius.bottomLeft = (float)style.corner_radius;
+    decl.cornerRadius.bottomRight = (float)style.corner_radius;
+    decl.border.color = style.border_color;
+    decl.border.width.left = 1;
+    decl.border.width.right = 1;
+    decl.border.width.top = 1;
+    decl.border.width.bottom = 1;
+    decl.floating.attachTo = CLAY_ATTACH_TO_PARENT;
+    decl.floating.attachPoints.element = CLAY_ATTACH_POINT_LEFT_TOP;
+    decl.floating.attachPoints.parent = CLAY_ATTACH_POINT_LEFT_BOTTOM;
+    decl.floating.zIndex = 100;
+    decl.floating.offset.y = 4;
+    decl.floating.pointerCaptureMode = CLAY_POINTER_CAPTURE_MODE_CAPTURE;
+
+    Clay__OpenElement();
+    Clay__ConfigureOpenElement(decl);
+}
+
+bool ClayKit_MenuItem(ClayKit_Context *ctx, const char *text, int32_t text_len, bool disabled, ClayKit_MenuConfig cfg) {
+    ClayKit_MenuStyle style = ClayKit_ComputeMenuStyle(ctx, cfg);
+
+    Clay__OpenElement();
+    bool hovered = Clay_Hovered();
+
+    Clay_Color bg = (Clay_Color){ 0, 0, 0, 0 };
+    if (hovered && !disabled) {
+        bg = style.hover_bg;
+    }
+
+    Clay_ElementDeclaration decl = {0};
+    decl.layout.sizing.width.type = CLAY__SIZING_TYPE_GROW;
+    decl.layout.sizing.height.type = CLAY__SIZING_TYPE_FIT;
+    decl.layout.padding.left = style.padding_x;
+    decl.layout.padding.right = style.padding_x;
+    decl.layout.padding.top = style.padding_y > 2 ? style.padding_y - 2 : style.padding_y;
+    decl.layout.padding.bottom = style.padding_y > 2 ? style.padding_y - 2 : style.padding_y;
+    decl.backgroundColor = bg;
+    decl.cornerRadius.topLeft = (float)(style.corner_radius > 2 ? style.corner_radius - 2 : style.corner_radius);
+    decl.cornerRadius.topRight = decl.cornerRadius.topLeft;
+    decl.cornerRadius.bottomLeft = decl.cornerRadius.topLeft;
+    decl.cornerRadius.bottomRight = decl.cornerRadius.topLeft;
+
+    Clay__ConfigureOpenElement(decl);
+
+    Clay_String text_str = { false, text_len, text };
+    Clay_TextElementConfig text_config = {0};
+    text_config.fontSize = style.font_size;
+    text_config.textColor = disabled ? style.disabled_text : style.text_color;
+    text_config.fontId = style.font_id;
+    text_config.wrapMode = CLAY_TEXT_WRAP_NONE;
+    Clay__OpenTextElement(text_str, Clay__StoreTextElementConfig(text_config));
+
+    Clay__CloseElement();
+    return hovered && !disabled;
+}
+
+void ClayKit_MenuSeparator(ClayKit_Context *ctx, ClayKit_MenuConfig cfg) {
+    ClayKit_MenuStyle style = ClayKit_ComputeMenuStyle(ctx, cfg);
+
+    Clay_ElementDeclaration decl = {0};
+    decl.layout.sizing.width.type = CLAY__SIZING_TYPE_GROW;
+    decl.layout.sizing.height.type = CLAY__SIZING_TYPE_FIXED;
+    decl.layout.sizing.height.size.minMax.min = (float)style.separator_height;
+    decl.layout.sizing.height.size.minMax.max = (float)style.separator_height;
+    decl.backgroundColor = style.separator_color;
+
+    Clay__OpenElement();
+    Clay__ConfigureOpenElement(decl);
+    Clay__CloseElement();
+}
+
+void ClayKit_MenuDropdownEnd(void) {
+    Clay__CloseElement();
 }
 
 #endif /* CLAYKIT_IMPLEMENTATION */

@@ -23,8 +23,8 @@
 #define CLAYKIT_IMPLEMENTATION
 #include "clay_kit.h"
 
-#define WINDOW_WIDTH 1024
-#define WINDOW_HEIGHT 768
+#define WINDOW_WIDTH 1280
+#define WINDOW_HEIGHT 800
 
 /* Raylib font for text rendering */
 static Font raylib_font;
@@ -39,6 +39,13 @@ static ClayKit_InputState input_state;
 /* UI state */
 static int active_tab = 0;
 static bool show_modal = false;
+static bool show_drawer = false;
+static bool show_popover = false;
+static int selected_radio = 0;
+static int selected_option = -1;  /* -1 = no selection */
+static bool select_open = false;
+static bool accordion_open[3] = { true, false, false };
+static bool menu_open = false;
 
 /* Pending click state */
 static bool pending_input_click = false;
@@ -50,6 +57,18 @@ static int tab_hovered = -1;  /* -1 = none, 0-2 = tab index */
 static bool modal_btn_hovered = false;
 static bool close_modal_btn_hovered = false;
 static bool backdrop_hovered = false;
+static bool drawer_btn_hovered = false;
+static bool drawer_backdrop_hovered = false;
+static bool close_drawer_btn_hovered = false;
+static bool popover_anchor_hovered = false;
+static int radio_hovered = -1;   /* -1 = none, 0-2 = radio index */
+static bool select_trigger_hovered = false;
+static int select_option_hovered = -1;  /* -1 = none */
+static int link_hovered = -1;  /* -1 = none, 0-2 = link index */
+static int breadcrumb_hovered = -1;
+static bool accordion_header_hovered[3] = {false, false, false};
+static bool menu_btn_hovered = false;
+static int menu_item_hovered = -1;
 
 /* Forward declarations */
 static void render_demo_ui(ClayKit_Context *ctx, ClayKit_Theme *theme);
@@ -187,6 +206,7 @@ static void add_text(const char *str, uint16_t font_size, Clay_Color color) {
 
 int main(void) {
     /* Initialize raylib */
+    SetConfigFlags(FLAG_WINDOW_HIGHDPI | FLAG_MSAA_4X_HINT);
     InitWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "ClayKit + Raylib Demo (C)");
     SetTargetFPS(60);
 
@@ -301,6 +321,18 @@ int main(void) {
         modal_btn_hovered = false;
         close_modal_btn_hovered = false;
         backdrop_hovered = false;
+        drawer_btn_hovered = false;
+        drawer_backdrop_hovered = false;
+        close_drawer_btn_hovered = false;
+        popover_anchor_hovered = false;
+        radio_hovered = -1;
+        select_trigger_hovered = false;
+        select_option_hovered = -1;
+        link_hovered = -1;
+        breadcrumb_hovered = -1;
+        for (int i = 0; i < 3; i++) accordion_header_hovered[i] = false;
+        menu_btn_hovered = false;
+        menu_item_hovered = -1;
 
         /* Build UI */
         Clay_BeginLayout();
@@ -328,6 +360,34 @@ int main(void) {
                 active_tab = tab_hovered;
             }
 
+            /* Radio selection */
+            if (radio_hovered >= 0) {
+                selected_radio = radio_hovered;
+            }
+
+            /* Select trigger toggle */
+            if (select_trigger_hovered) {
+                select_open = !select_open;
+            } else if (select_option_hovered >= 0) {
+                selected_option = select_option_hovered;
+                select_open = false;
+            } else if (select_open) {
+                select_open = false;
+            }
+
+            /* Popover toggle on hover */
+            /* (handled below outside click block) */
+
+            /* Drawer open */
+            if (drawer_btn_hovered) {
+                show_drawer = true;
+            }
+
+            /* Drawer close (backdrop or close button) */
+            if (show_drawer && (drawer_backdrop_hovered || close_drawer_btn_hovered)) {
+                show_drawer = false;
+            }
+
             /* Modal open */
             if (modal_btn_hovered) {
                 show_modal = true;
@@ -337,7 +397,26 @@ int main(void) {
             if (show_modal && (backdrop_hovered || close_modal_btn_hovered)) {
                 show_modal = false;
             }
+
+            /* Accordion toggle */
+            for (int i = 0; i < 3; i++) {
+                if (accordion_header_hovered[i]) {
+                    accordion_open[i] = !accordion_open[i];
+                }
+            }
+
+            /* Menu toggle */
+            if (menu_btn_hovered) {
+                menu_open = !menu_open;
+            } else if (menu_item_hovered >= 0) {
+                menu_open = false;
+            } else if (menu_open) {
+                menu_open = false;
+            }
         }
+
+        /* Popover shows on hover */
+        show_popover = popover_anchor_hovered;
 
         /* Render */
         BeginDrawing();
@@ -410,7 +489,7 @@ static void render_demo_ui(ClayKit_Context *ctx, ClayKit_Theme *theme) {
     /* Root container */
     open_container(
         sizing_grow(), sizing_grow(),
-        padding_all(24), 16,
+        padding_all(16), 12,
         CLAY_TOP_TO_BOTTOM,
         (Clay_ChildAlignment){ CLAY_ALIGN_X_LEFT, CLAY_ALIGN_Y_TOP },
         theme->bg, 0
@@ -419,7 +498,7 @@ static void render_demo_ui(ClayKit_Context *ctx, ClayKit_Theme *theme) {
     /* Header */
     open_container(
         sizing_grow(), sizing_fit(),
-        padding_all(16), 0,
+        padding_all(12), 0,
         CLAY_LEFT_TO_RIGHT,
         (Clay_ChildAlignment){ CLAY_ALIGN_X_LEFT, CLAY_ALIGN_Y_CENTER },
         theme->primary, (float)theme->radius.md
@@ -427,48 +506,124 @@ static void render_demo_ui(ClayKit_Context *ctx, ClayKit_Theme *theme) {
     add_text("ClayKit Demo - Pure C", theme->font_size.xl, (Clay_Color){ 255, 255, 255, 255 });
     Clay__CloseElement(); /* Header */
 
-    /* Content area */
+    /* Content area - 4 columns */
     open_container(
         sizing_grow(), sizing_grow(),
-        (Clay_Padding){0}, 16,
+        (Clay_Padding){0}, 12,
         CLAY_LEFT_TO_RIGHT,
         (Clay_ChildAlignment){ CLAY_ALIGN_X_LEFT, CLAY_ALIGN_Y_TOP },
         (Clay_Color){0}, 0
     );
 
-    /* Left panel */
+    /* ===== Column 1: Form Controls ===== */
     open_container(
-        sizing_fixed(300), sizing_fit(),
-        padding_all(16), 10,
+        sizing_grow(), sizing_fit(),
+        padding_all(12), 8,
         CLAY_TOP_TO_BOTTOM,
         (Clay_ChildAlignment){ CLAY_ALIGN_X_LEFT, CLAY_ALIGN_Y_TOP },
         theme->secondary, (float)theme->radius.md
     );
 
-    add_text("Components", theme->font_size.lg, theme->fg);
-
-    /* Badge */
-    add_text("Badge:", theme->font_size.sm, theme->muted);
-    ClayKit_BadgeRaw(ctx, "Badge", 5, (ClayKit_BadgeConfig){0});
+    add_text("Form Controls", theme->font_size.md, theme->fg);
 
     /* Button */
     add_text("Button:", theme->font_size.sm, theme->muted);
     ClayKit_Button(ctx, "Click Me", 8, (ClayKit_ButtonConfig){0});
 
-    /* Progress */
-    add_text("Progress:", theme->font_size.sm, theme->muted);
-    ClayKit_Progress(ctx, 0.7f, (ClayKit_ProgressConfig){0});
+    /* Text Input */
+    add_text("Text Input:", theme->font_size.sm, theme->muted);
+    input_hovered = ClayKit_TextInput(ctx, "TextInput", 9, &input_state, (ClayKit_InputConfig){0}, "Type here...", 12);
 
     /* Slider */
     add_text("Slider:", theme->font_size.sm, theme->muted);
     ClayKit_Slider(ctx, 0.5f, (ClayKit_SliderConfig){0});
 
-    /* Text Input - capture hover state */
-    add_text("Text Input:", theme->font_size.sm, theme->muted);
-    input_hovered = ClayKit_TextInput(ctx, "TextInput", 9, &input_state, (ClayKit_InputConfig){0}, "Type here...", 12);
+    /* Radio group */
+    add_text("Radio:", theme->font_size.sm, theme->muted);
+    {
+        static const char *radio_labels[] = { "Option A", "Option B", "Option C" };
+        int i;
+        for (i = 0; i < 3; i++) {
+            open_container(sizing_grow(), sizing_fit(), (Clay_Padding){0}, 8,
+                CLAY_LEFT_TO_RIGHT,
+                (Clay_ChildAlignment){ CLAY_ALIGN_X_LEFT, CLAY_ALIGN_Y_CENTER },
+                (Clay_Color){0}, 0);
+            if (ClayKit_Radio(ctx, selected_radio == i, (ClayKit_RadioConfig){0})) {
+                radio_hovered = i;
+            }
+            add_text(radio_labels[i], theme->font_size.sm, theme->fg);
+            Clay__CloseElement();
+        }
+    }
+
+    /* Select */
+    add_text("Select:", theme->font_size.sm, theme->muted);
+    {
+        static const char *options[] = { "Apple", "Banana", "Cherry" };
+        static const int option_lens[] = { 5, 6, 6 };
+        const char *display = (selected_option >= 0) ? options[selected_option] : NULL;
+        int display_len = (selected_option >= 0) ? option_lens[selected_option] : 0;
+
+        select_trigger_hovered = ClayKit_SelectTrigger(ctx, "Select1", 7,
+            display, display_len, (ClayKit_SelectConfig){0});
+
+        if (select_open) {
+            ClayKit_SelectDropdownBegin(ctx, "SelectDrop1", 11, (ClayKit_SelectConfig){0});
+            int i;
+            for (i = 0; i < 3; i++) {
+                if (ClayKit_SelectOption(ctx, options[i], option_lens[i],
+                        selected_option == i, (ClayKit_SelectConfig){0})) {
+                    select_option_hovered = i;
+                }
+            }
+            ClayKit_SelectDropdownEnd();
+        }
+    }
+
+    Clay__CloseElement(); /* Column 1 */
+
+    /* ===== Column 2: Data Display ===== */
+    open_container(
+        sizing_grow(), sizing_fit(),
+        padding_all(12), 8,
+        CLAY_TOP_TO_BOTTOM,
+        (Clay_ChildAlignment){ CLAY_ALIGN_X_LEFT, CLAY_ALIGN_Y_TOP },
+        theme->secondary, (float)theme->radius.md
+    );
+
+    add_text("Data Display", theme->font_size.md, theme->fg);
+
+    /* Badge */
+    add_text("Badge:", theme->font_size.sm, theme->muted);
+    ClayKit_BadgeRaw(ctx, "Badge", 5, (ClayKit_BadgeConfig){0});
+
+    /* Tags */
+    add_text("Tags:", theme->font_size.sm, theme->muted);
+    open_container(sizing_grow(), sizing_fit(), (Clay_Padding){0}, 6,
+        CLAY_LEFT_TO_RIGHT, (Clay_ChildAlignment){ CLAY_ALIGN_X_LEFT, CLAY_ALIGN_Y_CENTER },
+        (Clay_Color){0}, 0);
+    ClayKit_TagRaw(ctx, "Default", 7, (ClayKit_TagConfig){0});
+    ClayKit_TagRaw(ctx, "Subtle", 6, (ClayKit_TagConfig){ .variant = CLAYKIT_TAG_SUBTLE, .color_scheme = CLAYKIT_COLOR_SUCCESS });
+    ClayKit_TagRaw(ctx, "Close", 5, (ClayKit_TagConfig){ .closeable = true, .color_scheme = CLAYKIT_COLOR_ERROR });
+    Clay__CloseElement();
+
+    /* Progress */
+    add_text("Progress:", theme->font_size.sm, theme->muted);
+    ClayKit_Progress(ctx, 0.7f, (ClayKit_ProgressConfig){0});
+
+    /* Spinner */
+    add_text("Spinner:", theme->font_size.sm, theme->muted);
+    open_container(sizing_grow(), sizing_fit(), (Clay_Padding){0}, 12,
+        CLAY_LEFT_TO_RIGHT,
+        (Clay_ChildAlignment){ CLAY_ALIGN_X_LEFT, CLAY_ALIGN_Y_CENTER },
+        (Clay_Color){0}, 0);
+    ClayKit_Spinner(ctx, (ClayKit_SpinnerConfig){0});
+    ClayKit_Spinner(ctx, (ClayKit_SpinnerConfig){ .size = CLAYKIT_SIZE_LG, .color_scheme = CLAYKIT_COLOR_SUCCESS });
+    ClayKit_Spinner(ctx, (ClayKit_SpinnerConfig){ .size = CLAYKIT_SIZE_XS, .color_scheme = CLAYKIT_COLOR_ERROR });
+    Clay__CloseElement();
 
     /* Alert */
-    add_text("Alert:", theme->font_size.sm, theme->muted);
+    add_text("Alerts:", theme->font_size.sm, theme->muted);
     ClayKit_AlertText(ctx, "Info alert message", 18, (ClayKit_AlertConfig){0});
     ClayKit_AlertText(ctx, "Success!", 8, (ClayKit_AlertConfig){ .color_scheme = CLAYKIT_COLOR_SUCCESS });
 
@@ -476,7 +631,106 @@ static void render_demo_ui(ClayKit_Context *ctx, ClayKit_Theme *theme) {
     add_text("Tooltip:", theme->font_size.sm, theme->muted);
     ClayKit_Tooltip(ctx, "This is a tooltip", 17, (ClayKit_TooltipConfig){0});
 
-    /* Tabs - capture hover states */
+    /* Stats */
+    add_text("Stats:", theme->font_size.sm, theme->muted);
+    ClayKit_Stat(ctx, "Revenue", 7, "$45,231", 7, "+20.1%", 6, (ClayKit_StatConfig){ .size = CLAYKIT_SIZE_SM });
+    ClayKit_Stat(ctx, "Users", 5, "2,350", 5, "+180", 4, (ClayKit_StatConfig){ .size = CLAYKIT_SIZE_SM });
+
+    Clay__CloseElement(); /* Column 2 */
+
+    /* ===== Column 3: Lists & Table ===== */
+    open_container(
+        sizing_grow(), sizing_fit(),
+        padding_all(12), 8,
+        CLAY_TOP_TO_BOTTOM,
+        (Clay_ChildAlignment){ CLAY_ALIGN_X_LEFT, CLAY_ALIGN_Y_TOP },
+        (Clay_Color){ 240, 240, 245, 255 }, (float)theme->radius.md
+    );
+
+    add_text("Lists & Table", theme->font_size.md, theme->fg);
+
+    /* Unordered list */
+    add_text("Unordered:", theme->font_size.sm, theme->muted);
+    {
+        ClayKit_ListConfig list_cfg = {0};
+        ClayKit_ListBegin(ctx, list_cfg);
+        ClayKit_ListItemRaw(ctx, "First item", 10, 0, list_cfg);
+        ClayKit_ListItemRaw(ctx, "Second item", 11, 1, list_cfg);
+        ClayKit_ListItemRaw(ctx, "Third item", 10, 2, list_cfg);
+        ClayKit_ListEnd();
+    }
+
+    /* Ordered list */
+    add_text("Ordered:", theme->font_size.sm, theme->muted);
+    {
+        ClayKit_ListConfig list_cfg = { .ordered = true };
+        ClayKit_ListBegin(ctx, list_cfg);
+        ClayKit_ListItemRaw(ctx, "Step one", 8, 0, list_cfg);
+        ClayKit_ListItemRaw(ctx, "Step two", 8, 1, list_cfg);
+        ClayKit_ListItemRaw(ctx, "Step three", 10, 2, list_cfg);
+        ClayKit_ListEnd();
+    }
+
+    /* Table */
+    add_text("Table:", theme->font_size.sm, theme->muted);
+    {
+        ClayKit_TableConfig table_cfg = { .striped = true, .bordered = true };
+
+        ClayKit_TableBegin(ctx, table_cfg);
+
+        ClayKit_TableHeaderRow(ctx, table_cfg);
+        ClayKit_TableHeaderCell(ctx, 0.33f, table_cfg);
+        add_text("Name", theme->font_size.sm, (Clay_Color){ 255, 255, 255, 255 });
+        ClayKit_TableCellEnd();
+        ClayKit_TableHeaderCell(ctx, 0.33f, table_cfg);
+        add_text("Role", theme->font_size.sm, (Clay_Color){ 255, 255, 255, 255 });
+        ClayKit_TableCellEnd();
+        ClayKit_TableHeaderCell(ctx, 0.34f, table_cfg);
+        add_text("Status", theme->font_size.sm, (Clay_Color){ 255, 255, 255, 255 });
+        ClayKit_TableCellEnd();
+        ClayKit_TableRowEnd();
+
+        ClayKit_TableRow(ctx, 0, table_cfg);
+        ClayKit_TableCell(ctx, 0.33f, 0, table_cfg);
+        add_text("Alice", theme->font_size.sm, theme->fg);
+        ClayKit_TableCellEnd();
+        ClayKit_TableCell(ctx, 0.33f, 0, table_cfg);
+        add_text("Engineer", theme->font_size.sm, theme->fg);
+        ClayKit_TableCellEnd();
+        ClayKit_TableCell(ctx, 0.34f, 0, table_cfg);
+        add_text("Active", theme->font_size.sm, theme->fg);
+        ClayKit_TableCellEnd();
+        ClayKit_TableRowEnd();
+
+        ClayKit_TableRow(ctx, 1, table_cfg);
+        ClayKit_TableCell(ctx, 0.33f, 1, table_cfg);
+        add_text("Bob", theme->font_size.sm, theme->fg);
+        ClayKit_TableCellEnd();
+        ClayKit_TableCell(ctx, 0.33f, 1, table_cfg);
+        add_text("Designer", theme->font_size.sm, theme->fg);
+        ClayKit_TableCellEnd();
+        ClayKit_TableCell(ctx, 0.34f, 1, table_cfg);
+        add_text("Away", theme->font_size.sm, theme->fg);
+        ClayKit_TableCellEnd();
+        ClayKit_TableRowEnd();
+
+        ClayKit_TableEnd();
+    }
+
+    Clay__CloseElement(); /* Column 3 */
+
+    /* ===== Column 4: Navigation & Overlays ===== */
+    open_container(
+        sizing_grow(), sizing_fit(),
+        padding_all(12), 8,
+        CLAY_TOP_TO_BOTTOM,
+        (Clay_ChildAlignment){ CLAY_ALIGN_X_LEFT, CLAY_ALIGN_Y_TOP },
+        theme->secondary, (float)theme->radius.md
+    );
+
+    add_text("Navigation", theme->font_size.md, theme->fg);
+
+    /* Tabs - line variant */
     add_text("Tabs:", theme->font_size.sm, theme->muted);
     open_container(
         sizing_grow(), sizing_fit(),
@@ -490,7 +744,7 @@ static void render_demo_ui(ClayKit_Context *ctx, ClayKit_Theme *theme) {
     if (ClayKit_Tab(ctx, "Tab 3", 5, active_tab == 2, (ClayKit_TabsConfig){0})) tab_hovered = 2;
     Clay__CloseElement();
 
-    /* Second tabs row with enclosed variant */
+    /* Tabs - enclosed variant */
     open_container(
         sizing_grow(), sizing_fit(),
         (Clay_Padding){0}, 0,
@@ -504,46 +758,8 @@ static void render_demo_ui(ClayKit_Context *ctx, ClayKit_Theme *theme) {
     if (ClayKit_Tab(ctx, "Tab 3", 5, active_tab == 2, enclosed_cfg)) tab_hovered = 2;
     Clay__CloseElement();
 
-    /* Modal button */
-    add_text("Modal:", theme->font_size.sm, theme->muted);
-    modal_btn_hovered = ClayKit_Button(ctx, "Open Modal", 10, (ClayKit_ButtonConfig){0});
-
-    Clay__CloseElement(); /* Left panel */
-
-    /* Center panel */
-    open_container(
-        sizing_grow(), sizing_grow(),
-        (Clay_Padding){0}, 0,
-        CLAY_LEFT_TO_RIGHT,
-        (Clay_ChildAlignment){ CLAY_ALIGN_X_CENTER, CLAY_ALIGN_Y_CENTER },
-        (Clay_Color){ 240, 240, 245, 255 }, (float)theme->radius.md
-    );
-
-    open_container(
-        sizing_fixed(250), sizing_fixed(120),
-        padding_all(16), 8,
-        CLAY_TOP_TO_BOTTOM,
-        (Clay_ChildAlignment){ CLAY_ALIGN_X_CENTER, CLAY_ALIGN_Y_CENTER },
-        theme->success, (float)theme->radius.lg
-    );
-    add_text("Pure C Works!", theme->font_size.lg, (Clay_Color){ 255, 255, 255, 255 });
-    add_text("All components in C", theme->font_size.sm, (Clay_Color){ 220, 255, 220, 255 });
-    Clay__CloseElement();
-
-    Clay__CloseElement(); /* Center panel */
-
-    /* Right panel - color swatches */
-    open_container(
-        sizing_fixed(200), sizing_grow(),
-        padding_all(16), 12,
-        CLAY_TOP_TO_BOTTOM,
-        (Clay_ChildAlignment){ CLAY_ALIGN_X_LEFT, CLAY_ALIGN_Y_TOP },
-        theme->secondary, (float)theme->radius.md
-    );
-
-    add_text("Theme Colors", theme->font_size.lg, theme->fg);
-
-    /* Color swatches row */
+    /* Links */
+    add_text("Links:", theme->font_size.sm, theme->muted);
     open_container(
         sizing_grow(), sizing_fit(),
         (Clay_Padding){0}, 8,
@@ -551,37 +767,130 @@ static void render_demo_ui(ClayKit_Context *ctx, ClayKit_Theme *theme) {
         (Clay_ChildAlignment){ CLAY_ALIGN_X_LEFT, CLAY_ALIGN_Y_CENTER },
         (Clay_Color){0}, 0
     );
+    link_hovered = -1;
+    if (ClayKit_Link(ctx, "Default", 7, (ClayKit_LinkConfig){0})) link_hovered = 0;
+    if (ClayKit_Link(ctx, "Hover", 5, (ClayKit_LinkConfig){ .variant = CLAYKIT_LINK_HOVER_UNDERLINE })) link_hovered = 1;
+    if (ClayKit_Link(ctx, "Disabled", 8, (ClayKit_LinkConfig){ .disabled = true })) link_hovered = 2;
+    Clay__CloseElement();
 
-    /* Primary swatch */
-    open_container(sizing_fixed(32), sizing_fixed(32), (Clay_Padding){0}, 0,
+    /* Breadcrumb */
+    add_text("Breadcrumb:", theme->font_size.sm, theme->muted);
+    {
+        ClayKit_BreadcrumbConfig bc_cfg = {0};
+        breadcrumb_hovered = -1;
+        ClayKit_BreadcrumbBegin(ctx, bc_cfg);
+        if (ClayKit_BreadcrumbItem(ctx, "Home", 4, false, bc_cfg)) breadcrumb_hovered = 0;
+        ClayKit_BreadcrumbSeparator(ctx, bc_cfg);
+        if (ClayKit_BreadcrumbItem(ctx, "Products", 8, false, bc_cfg)) breadcrumb_hovered = 1;
+        ClayKit_BreadcrumbSeparator(ctx, bc_cfg);
+        ClayKit_BreadcrumbItem(ctx, "Widget", 6, true, bc_cfg);
+        ClayKit_BreadcrumbEnd();
+    }
+
+    /* Accordion */
+    add_text("Accordion:", theme->font_size.sm, theme->muted);
+    {
+        ClayKit_AccordionConfig acc_cfg = {0};
+        ClayKit_AccordionBegin(ctx, acc_cfg);
+
+        ClayKit_AccordionItemBegin(ctx, accordion_open[0], acc_cfg);
+        accordion_header_hovered[0] = ClayKit_AccordionHeader(ctx, "Section 1", 9, accordion_open[0], acc_cfg);
+        if (accordion_open[0]) {
+            ClayKit_AccordionContentBegin(ctx, acc_cfg);
+            add_text("Content for section 1. This is expanded by default.", theme->font_size.sm, theme->fg);
+            ClayKit_AccordionContentEnd();
+        }
+        ClayKit_AccordionItemEnd();
+
+        ClayKit_AccordionItemBegin(ctx, accordion_open[1], acc_cfg);
+        accordion_header_hovered[1] = ClayKit_AccordionHeader(ctx, "Section 2", 9, accordion_open[1], acc_cfg);
+        if (accordion_open[1]) {
+            ClayKit_AccordionContentBegin(ctx, acc_cfg);
+            add_text("Content for section 2.", theme->font_size.sm, theme->fg);
+            ClayKit_AccordionContentEnd();
+        }
+        ClayKit_AccordionItemEnd();
+
+        ClayKit_AccordionItemBegin(ctx, accordion_open[2], acc_cfg);
+        accordion_header_hovered[2] = ClayKit_AccordionHeader(ctx, "Section 3", 9, accordion_open[2], acc_cfg);
+        if (accordion_open[2]) {
+            ClayKit_AccordionContentBegin(ctx, acc_cfg);
+            add_text("Content for section 3.", theme->font_size.sm, theme->fg);
+            ClayKit_AccordionContentEnd();
+        }
+        ClayKit_AccordionItemEnd();
+
+        ClayKit_AccordionEnd();
+    }
+
+    /* Menu */
+    add_text("Menu:", theme->font_size.sm, theme->muted);
+    open_container(sizing_fit(), sizing_fit(), (Clay_Padding){0}, 0,
+        CLAY_TOP_TO_BOTTOM, (Clay_ChildAlignment){0}, (Clay_Color){0}, 0);
+    menu_btn_hovered = ClayKit_Button(ctx, "Actions", 7, (ClayKit_ButtonConfig){0});
+    if (menu_open) {
+        ClayKit_MenuConfig menu_cfg = {0};
+        menu_item_hovered = -1;
+        ClayKit_MenuDropdownBegin(ctx, "Menu1", 5, menu_cfg);
+        if (ClayKit_MenuItem(ctx, "Edit", 4, false, menu_cfg)) menu_item_hovered = 0;
+        if (ClayKit_MenuItem(ctx, "Duplicate", 9, false, menu_cfg)) menu_item_hovered = 1;
+        ClayKit_MenuSeparator(ctx, menu_cfg);
+        if (ClayKit_MenuItem(ctx, "Delete", 6, true, menu_cfg)) menu_item_hovered = 2;
+        ClayKit_MenuDropdownEnd();
+    }
+    Clay__CloseElement(); /* Menu wrapper */
+
+    /* Popover - wrapped so popover attaches to button's parent, not column */
+    add_text("Popover:", theme->font_size.sm, theme->muted);
+    open_container(sizing_fit(), sizing_fit(), (Clay_Padding){0}, 0,
+        CLAY_TOP_TO_BOTTOM, (Clay_ChildAlignment){0}, (Clay_Color){0}, 0);
+    popover_anchor_hovered = ClayKit_Button(ctx, "Hover me", 8, (ClayKit_ButtonConfig){0});
+    if (show_popover) {
+        ClayKit_PopoverBegin(ctx, "Popover1", 8, (ClayKit_PopoverConfig){0});
+        add_text("Popover content!", theme->font_size.sm, theme->fg);
+        ClayKit_PopoverEnd();
+    }
+    Clay__CloseElement(); /* Popover wrapper */
+
+    /* Drawer button */
+    add_text("Drawer:", theme->font_size.sm, theme->muted);
+    drawer_btn_hovered = ClayKit_Button(ctx, "Open Drawer", 11, (ClayKit_ButtonConfig){0});
+
+    /* Modal button */
+    add_text("Modal:", theme->font_size.sm, theme->muted);
+    modal_btn_hovered = ClayKit_Button(ctx, "Open Modal", 10, (ClayKit_ButtonConfig){0});
+
+    /* Theme Colors */
+    add_text("Theme:", theme->font_size.sm, theme->muted);
+    open_container(
+        sizing_grow(), sizing_fit(),
+        (Clay_Padding){0}, 8,
+        CLAY_LEFT_TO_RIGHT,
+        (Clay_ChildAlignment){ CLAY_ALIGN_X_LEFT, CLAY_ALIGN_Y_CENTER },
+        (Clay_Color){0}, 0
+    );
+    open_container(sizing_fixed(24), sizing_fixed(24), (Clay_Padding){0}, 0,
         CLAY_LEFT_TO_RIGHT, (Clay_ChildAlignment){0}, theme->primary, 4);
     Clay__CloseElement();
-
-    /* Success swatch */
-    open_container(sizing_fixed(32), sizing_fixed(32), (Clay_Padding){0}, 0,
+    open_container(sizing_fixed(24), sizing_fixed(24), (Clay_Padding){0}, 0,
         CLAY_LEFT_TO_RIGHT, (Clay_ChildAlignment){0}, theme->success, 4);
     Clay__CloseElement();
-
-    /* Warning swatch */
-    open_container(sizing_fixed(32), sizing_fixed(32), (Clay_Padding){0}, 0,
+    open_container(sizing_fixed(24), sizing_fixed(24), (Clay_Padding){0}, 0,
         CLAY_LEFT_TO_RIGHT, (Clay_ChildAlignment){0}, theme->warning, 4);
     Clay__CloseElement();
-
-    /* Error swatch */
-    open_container(sizing_fixed(32), sizing_fixed(32), (Clay_Padding){0}, 0,
+    open_container(sizing_fixed(24), sizing_fixed(24), (Clay_Padding){0}, 0,
         CLAY_LEFT_TO_RIGHT, (Clay_ChildAlignment){0}, theme->error, 4);
     Clay__CloseElement();
-
     Clay__CloseElement(); /* Swatches row */
 
-    Clay__CloseElement(); /* Right panel */
+    Clay__CloseElement(); /* Column 4 */
 
     Clay__CloseElement(); /* Content area */
 
     /* Footer */
     open_container(
         sizing_grow(), sizing_fit(),
-        padding_all(12), 0,
+        padding_all(8), 0,
         CLAY_LEFT_TO_RIGHT,
         (Clay_ChildAlignment){ CLAY_ALIGN_X_CENTER, CLAY_ALIGN_Y_CENTER },
         theme->border, (float)theme->radius.sm
@@ -590,6 +899,19 @@ static void render_demo_ui(ClayKit_Context *ctx, ClayKit_Theme *theme) {
     Clay__CloseElement(); /* Footer */
 
     Clay__CloseElement(); /* Root */
+
+    /* Drawer overlay */
+    if (show_drawer) {
+        drawer_backdrop_hovered = ClayKit_DrawerBegin(ctx, "Drawer1", 7,
+            (ClayKit_DrawerConfig){ .side = CLAYKIT_DRAWER_RIGHT });
+
+        add_text("Drawer Content", 20, (Clay_Color){ 50, 50, 50, 255 });
+        add_text("This is a drawer panel that slides in from the right side.", 14, (Clay_Color){ 100, 100, 100, 255 });
+
+        close_drawer_btn_hovered = ClayKit_Button(ctx, "Close Drawer", 12, (ClayKit_ButtonConfig){0});
+
+        ClayKit_DrawerEnd();
+    }
 
     /* Modal overlay (rendered on top) */
     if (show_modal) {
