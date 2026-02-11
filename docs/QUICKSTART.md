@@ -287,6 +287,122 @@ ClayKit_Button(&ctx, "Large", 5, (ClayKit_ButtonConfig){
 });
 ```
 
+## Navigation Components
+
+### Link
+
+```c
+if (ClayKit_Link(&ctx, "Learn more", 10, (ClayKit_LinkConfig){
+    .variant = CLAYKIT_LINK_UNDERLINE
+})) {
+    if (IsMouseClicked()) { /* navigate */ }
+}
+```
+
+### Breadcrumb
+
+```c
+ClayKit_BreadcrumbConfig bcfg = {0};
+ClayKit_BreadcrumbBegin(&ctx, bcfg);
+ClayKit_BreadcrumbItem(&ctx, "Home", 4, false, bcfg);
+ClayKit_BreadcrumbSeparator(&ctx, bcfg);
+ClayKit_BreadcrumbItem(&ctx, "Docs", 4, true, bcfg);  // current page
+ClayKit_BreadcrumbEnd();
+```
+
+### Accordion
+
+```c
+static bool open[2] = { true, false };
+ClayKit_AccordionConfig acfg = {0};
+
+ClayKit_AccordionBegin(&ctx, acfg);
+for (int i = 0; i < 2; i++) {
+    ClayKit_AccordionItemBegin(&ctx, open[i], acfg);
+    if (ClayKit_AccordionHeader(&ctx, titles[i], lens[i], open[i], acfg)) {
+        if (IsMouseClicked()) open[i] = !open[i];
+    }
+    if (open[i]) {
+        ClayKit_AccordionContentBegin(&ctx, acfg);
+        // Your content here
+        ClayKit_AccordionContentEnd();
+    }
+    ClayKit_AccordionItemEnd();
+}
+ClayKit_AccordionEnd();
+```
+
+### Menu
+
+```c
+static bool menu_open = false;
+
+if (ClayKit_Button(&ctx, "Actions", 7, (ClayKit_ButtonConfig){0})) {
+    if (IsMouseClicked()) menu_open = !menu_open;
+}
+if (menu_open) {
+    ClayKit_MenuConfig mcfg = {0};
+    ClayKit_MenuDropdownBegin(&ctx, "menu", 4, mcfg);
+    if (ClayKit_MenuItem(&ctx, "Edit", 4, false, mcfg)) {
+        if (IsMouseClicked()) { /* handle */ menu_open = false; }
+    }
+    ClayKit_MenuSeparator(&ctx, mcfg);
+    ClayKit_MenuItem(&ctx, "Delete", 6, true, mcfg);  // disabled
+    ClayKit_MenuDropdownEnd();
+}
+```
+
+## Data Display Components
+
+### Tag
+
+```c
+ClayKit_TagRaw(&ctx, "React", 5, (ClayKit_TagConfig){
+    .color_scheme = CLAYKIT_COLOR_PRIMARY,
+    .closeable = true
+});
+```
+
+### Stat
+
+```c
+ClayKit_Stat(&ctx, "Revenue", 7, "$12,345", 7, "+8% this month", 14,
+    (ClayKit_StatConfig){0});
+```
+
+### List
+
+```c
+ClayKit_ListConfig lcfg = { .ordered = true };
+ClayKit_ListBegin(&ctx, lcfg);
+ClayKit_ListItemRaw(&ctx, "First step", 10, 0, lcfg);
+ClayKit_ListItemRaw(&ctx, "Second step", 11, 1, lcfg);
+ClayKit_ListEnd();
+```
+
+### Select
+
+```c
+static int selected = -1;
+static bool sel_open = false;
+const char *display = selected >= 0 ? opts[selected] : "Choose...";
+
+if (ClayKit_SelectTrigger(&ctx, "sel", 3, display, strlen(display),
+    (ClayKit_SelectConfig){0})) {
+    if (IsMouseClicked()) sel_open = !sel_open;
+}
+if (sel_open) {
+    ClayKit_SelectDropdownBegin(&ctx, "sel", 3, (ClayKit_SelectConfig){0});
+    for (int i = 0; i < count; i++) {
+        if (ClayKit_SelectOption(&ctx, opts[i], lens[i], selected == i,
+            (ClayKit_SelectConfig){0})) {
+            if (IsMouseClicked()) { selected = i; sel_open = false; }
+        }
+    }
+    ClayKit_SelectDropdownEnd();
+}
+```
+
 ## Next Steps
 
 - See [API Reference](API.md) for complete documentation

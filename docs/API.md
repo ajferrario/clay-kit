@@ -11,15 +11,28 @@ ClayKit is a zero-allocation UI component library for [Clay](https://github.com/
 - [Layout Primitives](#layout-primitives)
 - [Components](#components)
   - [Badge](#badge)
+  - [Tag](#tag)
+  - [Stat](#stat)
+  - [List](#list)
+  - [Table](#table)
   - [Button](#button)
+  - [Checkbox](#checkbox)
+  - [Radio](#radio)
+  - [Switch](#switch)
   - [Progress](#progress)
   - [Slider](#slider)
+  - [Select](#select)
   - [Alert](#alert)
   - [Tooltip](#tooltip)
+  - [Spinner](#spinner)
   - [Tabs](#tabs)
+  - [Link](#link)
+  - [Breadcrumb](#breadcrumb)
+  - [Accordion](#accordion)
+  - [Menu](#menu)
   - [Modal](#modal)
-  - [Checkbox](#checkbox)
-  - [Switch](#switch)
+  - [Drawer](#drawer)
+  - [Popover](#popover)
   - [Text Input](#text-input)
 - [Text Input Handling](#text-input-handling)
 - [Focus Management](#focus-management)
@@ -357,23 +370,190 @@ ClayKit_BadgeRaw(&ctx, "New", 3, (ClayKit_BadgeConfig){
 
 ---
 
+### Tag
+
+A closeable label, similar to Badge but with an optional close indicator.
+
+```c
+typedef enum {
+    CLAYKIT_TAG_SOLID = 0,    // Solid background
+    CLAYKIT_TAG_SUBTLE,       // Light background, colored text
+    CLAYKIT_TAG_OUTLINE       // Transparent with border
+} ClayKit_TagVariant;
+
+typedef struct {
+    ClayKit_ColorScheme color_scheme;
+    ClayKit_TagVariant variant;
+    ClayKit_Size size;
+    bool closeable;              // Show close "x" indicator
+} ClayKit_TagConfig;
+
+void ClayKit_TagRaw(
+    ClayKit_Context *ctx,
+    const char *text,
+    int32_t text_len,
+    ClayKit_TagConfig cfg
+);
+
+void ClayKit_Tag(
+    ClayKit_Context *ctx,
+    Clay_String text,
+    ClayKit_TagConfig cfg
+);
+```
+
+**Example:**
+```c
+ClayKit_TagRaw(&ctx, "JavaScript", 10, (ClayKit_TagConfig){
+    .color_scheme = CLAYKIT_COLOR_WARNING,
+    .closeable = true
+});
+```
+
+---
+
+### Stat
+
+A statistics display with label, large value, and optional help text.
+
+```c
+typedef struct {
+    ClayKit_Size size;             // Affects value font size
+    Clay_Color label_color;        // Label text color (default: theme muted)
+    Clay_Color value_color;        // Value text color (default: theme fg)
+    Clay_Color help_color;         // Help text color (default: theme muted)
+} ClayKit_StatConfig;
+
+void ClayKit_Stat(
+    ClayKit_Context *ctx,
+    const char *label, int32_t label_len,
+    const char *value, int32_t value_len,
+    const char *help_text, int32_t help_len,  // NULL for no help text
+    ClayKit_StatConfig cfg
+);
+```
+
+**Example:**
+```c
+ClayKit_Stat(&ctx,
+    "Total Users", 11,
+    "1,024", 5,
+    "+12% from last month", 20,
+    (ClayKit_StatConfig){0}
+);
+```
+
+---
+
+### List
+
+An ordered (numbered) or unordered (bullet) list.
+
+```c
+typedef struct {
+    bool ordered;              // true = numbered, false = bullet
+    ClayKit_Size size;
+    Clay_Color marker_color;   // Marker color (default: theme muted)
+    Clay_Color text_color;     // Item text color (default: theme fg)
+} ClayKit_ListConfig;
+
+void ClayKit_ListBegin(ClayKit_Context *ctx, ClayKit_ListConfig cfg);
+void ClayKit_ListItemRaw(
+    ClayKit_Context *ctx,
+    const char *text, int32_t text_len,
+    uint32_t index,            // Item index (used for numbering)
+    ClayKit_ListConfig cfg
+);
+void ClayKit_ListEnd(void);
+```
+
+**Example:**
+```c
+// Unordered list
+ClayKit_ListBegin(&ctx, (ClayKit_ListConfig){ .ordered = false });
+ClayKit_ListItemRaw(&ctx, "First item", 10, 0, cfg);
+ClayKit_ListItemRaw(&ctx, "Second item", 11, 1, cfg);
+ClayKit_ListItemRaw(&ctx, "Third item", 10, 2, cfg);
+ClayKit_ListEnd();
+
+// Ordered list
+ClayKit_ListBegin(&ctx, (ClayKit_ListConfig){ .ordered = true });
+ClayKit_ListItemRaw(&ctx, "Step one", 8, 0, cfg);
+ClayKit_ListItemRaw(&ctx, "Step two", 8, 1, cfg);
+ClayKit_ListEnd();
+```
+
+---
+
+### Table
+
+A data table with header row, optional striping, and borders.
+
+```c
+typedef struct {
+    ClayKit_ColorScheme color_scheme;  // Header color
+    ClayKit_Size size;                 // Padding and font size
+    bool striped;                      // Alternate row backgrounds
+    bool bordered;                     // Borders between cells
+} ClayKit_TableConfig;
+
+void ClayKit_TableBegin(ClayKit_Context *ctx, ClayKit_TableConfig cfg);
+void ClayKit_TableHeaderRow(ClayKit_Context *ctx, ClayKit_TableConfig cfg);
+void ClayKit_TableHeaderCell(ClayKit_Context *ctx, float width_percent, ClayKit_TableConfig cfg);
+void ClayKit_TableCellEnd(void);
+void ClayKit_TableRowEnd(void);
+void ClayKit_TableRow(ClayKit_Context *ctx, uint32_t row_index, ClayKit_TableConfig cfg);
+void ClayKit_TableCell(ClayKit_Context *ctx, float width_percent, uint32_t row_index, ClayKit_TableConfig cfg);
+void ClayKit_TableEnd(void);
+```
+
+**Example:**
+```c
+ClayKit_TableConfig cfg = { .striped = true, .bordered = true };
+
+ClayKit_TableBegin(&ctx, cfg);
+  // Header
+  ClayKit_TableHeaderRow(&ctx, cfg);
+    ClayKit_TableHeaderCell(&ctx, 0.5f, cfg);
+      CLAY_TEXT(CLAY_STRING("Name"), &header_text_cfg);
+    ClayKit_TableCellEnd();
+    ClayKit_TableHeaderCell(&ctx, 0.5f, cfg);
+      CLAY_TEXT(CLAY_STRING("Value"), &header_text_cfg);
+    ClayKit_TableCellEnd();
+  ClayKit_TableRowEnd();
+  // Data rows
+  ClayKit_TableRow(&ctx, 0, cfg);
+    ClayKit_TableCell(&ctx, 0.5f, 0, cfg);
+      CLAY_TEXT(CLAY_STRING("Alpha"), &text_cfg);
+    ClayKit_TableCellEnd();
+    ClayKit_TableCell(&ctx, 0.5f, 0, cfg);
+      CLAY_TEXT(CLAY_STRING("100"), &text_cfg);
+    ClayKit_TableCellEnd();
+  ClayKit_TableRowEnd();
+ClayKit_TableEnd();
+```
+
+---
+
 ### Button
 
 An interactive button with hover states.
 
 ```c
-typedef struct {
-    ClayKit_ButtonVariant variant;   // solid, outline, or ghost
-    ClayKit_ColorScheme color_scheme;
-    ClayKit_Size size;
-    bool disabled;                    // Disable interaction
-} ClayKit_ButtonConfig;
-
 typedef enum {
     CLAYKIT_BUTTON_SOLID = 0,  // Filled background
     CLAYKIT_BUTTON_OUTLINE,    // Border only
     CLAYKIT_BUTTON_GHOST       // No background or border
 } ClayKit_ButtonVariant;
+
+typedef struct {
+    ClayKit_ColorScheme color_scheme;
+    ClayKit_ButtonVariant variant;
+    ClayKit_Size size;
+    bool disabled;
+    ClayKit_Icon icon_left;      // Optional left icon
+    ClayKit_Icon icon_right;     // Optional right icon
+} ClayKit_ButtonConfig;
 
 // Returns true if hovered
 bool ClayKit_Button(
@@ -398,6 +578,105 @@ if (ClayKit_Button(&ctx, "Save", 4, (ClayKit_ButtonConfig){
 
 ---
 
+### Checkbox
+
+A checkable box control.
+
+```c
+typedef struct {
+    ClayKit_ColorScheme color_scheme;
+    ClayKit_Size size;
+    bool disabled;
+} ClayKit_CheckboxConfig;
+
+// Returns true if hovered
+bool ClayKit_Checkbox(
+    ClayKit_Context *ctx,
+    bool checked,
+    ClayKit_CheckboxConfig cfg
+);
+```
+
+**Example:**
+```c
+static bool is_checked = false;
+
+if (ClayKit_Checkbox(&ctx, is_checked, (ClayKit_CheckboxConfig){0})) {
+    if (IsMouseButtonPressed()) {
+        is_checked = !is_checked;
+    }
+}
+```
+
+---
+
+### Radio
+
+A radio button for single-selection groups.
+
+```c
+typedef struct {
+    ClayKit_ColorScheme color_scheme;
+    ClayKit_Size size;
+    bool disabled;
+} ClayKit_RadioConfig;
+
+// Returns true if hovered
+bool ClayKit_Radio(
+    ClayKit_Context *ctx,
+    bool selected,               // Whether this option is selected
+    ClayKit_RadioConfig cfg
+);
+```
+
+**Example:**
+```c
+static int selected_option = 0;
+
+for (int i = 0; i < 3; i++) {
+    if (ClayKit_Radio(&ctx, selected_option == i, (ClayKit_RadioConfig){0})) {
+        if (IsMouseButtonPressed()) {
+            selected_option = i;
+        }
+    }
+    // Render label next to radio...
+}
+```
+
+---
+
+### Switch
+
+A toggle switch control.
+
+```c
+typedef struct {
+    ClayKit_ColorScheme color_scheme;
+    ClayKit_Size size;
+    bool disabled;
+} ClayKit_SwitchConfig;
+
+// Returns true if hovered
+bool ClayKit_Switch(
+    ClayKit_Context *ctx,
+    bool on,
+    ClayKit_SwitchConfig cfg
+);
+```
+
+**Example:**
+```c
+static bool enabled = false;
+
+if (ClayKit_Switch(&ctx, enabled, (ClayKit_SwitchConfig){0})) {
+    if (IsMouseButtonPressed()) {
+        enabled = !enabled;
+    }
+}
+```
+
+---
+
 ### Progress
 
 A progress bar showing completion percentage.
@@ -405,13 +684,13 @@ A progress bar showing completion percentage.
 ```c
 typedef struct {
     ClayKit_ColorScheme color_scheme;
-    ClayKit_Size size;               // Affects height
-    uint16_t width;                  // Fixed width (0 = grow)
+    ClayKit_Size size;
+    bool striped;                // Show striped pattern (visual only)
 } ClayKit_ProgressConfig;
 
 void ClayKit_Progress(
     ClayKit_Context *ctx,
-    float value,                     // 0.0 to 1.0
+    float value,                 // 0.0 to 1.0
     ClayKit_ProgressConfig cfg
 );
 ```
@@ -433,14 +712,15 @@ A horizontal slider for value selection.
 typedef struct {
     ClayKit_ColorScheme color_scheme;
     ClayKit_Size size;
-    uint16_t width;                  // Fixed width (0 = grow)
+    float min;                   // Minimum value
+    float max;                   // Maximum value
     bool disabled;
 } ClayKit_SliderConfig;
 
 // Returns true if hovered
 bool ClayKit_Slider(
     ClayKit_Context *ctx,
-    float value,                     // 0.0 to 1.0
+    float value,                 // 0.0 to 1.0
     ClayKit_SliderConfig cfg
 );
 ```
@@ -449,23 +729,89 @@ bool ClayKit_Slider(
 
 ---
 
+### Select
+
+A dropdown select with trigger button and floating options list.
+
+```c
+typedef struct {
+    ClayKit_ColorScheme color_scheme;
+    ClayKit_Size size;
+    bool disabled;
+} ClayKit_SelectConfig;
+
+// Render the trigger button. Returns true if hovered.
+bool ClayKit_SelectTrigger(
+    ClayKit_Context *ctx,
+    const char *id, int32_t id_len,
+    const char *display_text, int32_t display_len,
+    ClayKit_SelectConfig cfg
+);
+
+// Open the floating dropdown (only call when select is open)
+void ClayKit_SelectDropdownBegin(
+    ClayKit_Context *ctx,
+    const char *id, int32_t id_len,
+    ClayKit_SelectConfig cfg
+);
+
+// Render an option. Returns true if hovered.
+bool ClayKit_SelectOption(
+    ClayKit_Context *ctx,
+    const char *text, int32_t text_len,
+    bool is_selected,
+    ClayKit_SelectConfig cfg
+);
+
+void ClayKit_SelectDropdownEnd(void);
+```
+
+**Example:**
+```c
+static int selected = -1;
+static bool select_open = false;
+const char *options[] = { "Apple", "Banana", "Cherry" };
+
+const char *display = selected >= 0 ? options[selected] : "Choose...";
+if (ClayKit_SelectTrigger(&ctx, "fruit", 5, display, strlen(display),
+    (ClayKit_SelectConfig){0})) {
+    if (IsMouseButtonPressed()) select_open = !select_open;
+}
+
+if (select_open) {
+    ClayKit_SelectDropdownBegin(&ctx, "fruit", 5, (ClayKit_SelectConfig){0});
+    for (int i = 0; i < 3; i++) {
+        if (ClayKit_SelectOption(&ctx, options[i], strlen(options[i]),
+            selected == i, (ClayKit_SelectConfig){0})) {
+            if (IsMouseButtonPressed()) {
+                selected = i;
+                select_open = false;
+            }
+        }
+    }
+    ClayKit_SelectDropdownEnd();
+}
+```
+
+---
+
 ### Alert
 
 A message box for notifications or warnings.
 
 ```c
-typedef struct {
-    ClayKit_AlertVariant variant;    // subtle, solid, or outline
-    ClayKit_ColorScheme color_scheme;
-} ClayKit_AlertConfig;
-
 typedef enum {
     CLAYKIT_ALERT_SUBTLE = 0,  // Light background tint
     CLAYKIT_ALERT_SOLID,       // Filled background
     CLAYKIT_ALERT_OUTLINE      // Border only
 } ClayKit_AlertVariant;
 
-// Render alert with text content
+typedef struct {
+    ClayKit_ColorScheme color_scheme;
+    ClayKit_AlertVariant variant;
+    ClayKit_Icon icon;           // Optional icon
+} ClayKit_AlertConfig;
+
 void ClayKit_AlertText(
     ClayKit_Context *ctx,
     const char *text,
@@ -490,7 +836,7 @@ A small popup text hint.
 
 ```c
 typedef struct {
-    ClayKit_TooltipPosition position;  // Currently unused, for future
+    ClayKit_TooltipPosition position;  // TOP, BOTTOM, LEFT, RIGHT
 } ClayKit_TooltipConfig;
 
 void ClayKit_Tooltip(
@@ -501,33 +847,66 @@ void ClayKit_Tooltip(
 );
 ```
 
-**Note:** This renders a static tooltip element. For hover-triggered tooltips, you need to conditionally render based on another element's hover state.
+**Note:** This renders a static tooltip element. For hover-triggered tooltips, conditionally render based on another element's hover state.
+
+---
+
+### Spinner
+
+An animated loading indicator. Renders as a circular element; actual rotation drawing is done by your renderer using the angle value.
+
+```c
+typedef struct {
+    ClayKit_ColorScheme color_scheme;
+    ClayKit_Size size;               // Spinner diameter
+    float speed;                     // Rotations per second (0 = default 1.0)
+} ClayKit_SpinnerConfig;
+
+void ClayKit_Spinner(
+    ClayKit_Context *ctx,
+    ClayKit_SpinnerConfig cfg
+);
+
+// Get current rotation angle (call in render loop)
+float ClayKit_SpinnerAngle(
+    ClayKit_Context *ctx,
+    ClayKit_SpinnerConfig cfg
+);
+```
+
+**Example:**
+```c
+ClayKit_Spinner(&ctx, (ClayKit_SpinnerConfig){
+    .color_scheme = CLAYKIT_COLOR_PRIMARY,
+    .size = CLAYKIT_SIZE_MD
+});
+```
 
 ---
 
 ### Tabs
 
-Tab navigation with line or enclosed variants.
+Tab navigation with line, enclosed, or soft variants.
 
 ```c
+typedef enum {
+    CLAYKIT_TABS_LINE = 0,     // Underline indicator
+    CLAYKIT_TABS_ENCLOSED,     // Box-style tabs
+    CLAYKIT_TABS_SOFT          // Soft rounded background
+} ClayKit_TabsVariant;
+
 typedef struct {
-    ClayKit_TabsVariant variant;     // line or enclosed
     ClayKit_ColorScheme color_scheme;
+    ClayKit_TabsVariant variant;
     ClayKit_Size size;
 } ClayKit_TabsConfig;
 
-typedef enum {
-    CLAYKIT_TABS_LINE = 0,     // Underline indicator
-    CLAYKIT_TABS_ENCLOSED      // Box-style tabs
-} ClayKit_TabsVariant;
-
-// Render a single tab
-// Returns true if hovered
+// Render a single tab. Returns true if hovered.
 bool ClayKit_Tab(
     ClayKit_Context *ctx,
     const char *label,
     int32_t label_len,
-    bool is_active,              // Whether this tab is selected
+    bool is_active,
     ClayKit_TabsConfig cfg
 );
 ```
@@ -535,47 +914,231 @@ bool ClayKit_Tab(
 **Example:**
 ```c
 static int active_tab = 0;
+ClayKit_TabsConfig cfg = { .variant = CLAYKIT_TABS_LINE };
 
 // Wrap tabs in a horizontal container
-open_container(sizing_grow(), sizing_fit(), ...);
+CLAY({ .layout = { .layoutDirection = CLAY_LEFT_TO_RIGHT } }) {
+    if (ClayKit_Tab(&ctx, "Tab 1", 5, active_tab == 0, cfg)) {
+        if (IsMouseButtonPressed()) active_tab = 0;
+    }
+    if (ClayKit_Tab(&ctx, "Tab 2", 5, active_tab == 1, cfg)) {
+        if (IsMouseButtonPressed()) active_tab = 1;
+    }
+}
+```
 
-if (ClayKit_Tab(&ctx, "Tab 1", 5, active_tab == 0, cfg)) {
-    if (IsMouseButtonPressed()) active_tab = 0;
+---
+
+### Link
+
+A text element with hover color change and optional underline.
+
+```c
+typedef enum {
+    CLAYKIT_LINK_UNDERLINE = 0,       // Always underlined
+    CLAYKIT_LINK_HOVER_UNDERLINE,     // Underline on hover only
+    CLAYKIT_LINK_NONE                 // No underline
+} ClayKit_LinkVariant;
+
+typedef struct {
+    ClayKit_ColorScheme color_scheme;
+    ClayKit_Size size;
+    ClayKit_LinkVariant variant;
+    bool disabled;
+} ClayKit_LinkConfig;
+
+// Returns true if hovered
+bool ClayKit_Link(
+    ClayKit_Context *ctx,
+    const char *text,
+    int32_t text_len,
+    ClayKit_LinkConfig cfg
+);
+```
+
+**Example:**
+```c
+if (ClayKit_Link(&ctx, "Click here", 10, (ClayKit_LinkConfig){
+    .variant = CLAYKIT_LINK_UNDERLINE,
+    .color_scheme = CLAYKIT_COLOR_PRIMARY
+})) {
+    if (IsMouseButtonPressed()) {
+        // Handle navigation
+    }
 }
-if (ClayKit_Tab(&ctx, "Tab 2", 5, active_tab == 1, cfg)) {
-    if (IsMouseButtonPressed()) active_tab = 1;
+```
+
+---
+
+### Breadcrumb
+
+A horizontal navigation path with separators. The last item is styled as the current page (non-interactive).
+
+```c
+typedef struct {
+    ClayKit_ColorScheme color_scheme;
+    ClayKit_Size size;
+    const char *separator;         // Separator text (NULL = "/")
+    int32_t separator_len;
+} ClayKit_BreadcrumbConfig;
+
+void ClayKit_BreadcrumbBegin(ClayKit_Context *ctx, ClayKit_BreadcrumbConfig cfg);
+bool ClayKit_BreadcrumbItem(
+    ClayKit_Context *ctx,
+    const char *text, int32_t text_len,
+    bool is_current,               // Current page (non-interactive)
+    ClayKit_BreadcrumbConfig cfg
+);
+void ClayKit_BreadcrumbSeparator(ClayKit_Context *ctx, ClayKit_BreadcrumbConfig cfg);
+void ClayKit_BreadcrumbEnd(void);
+```
+
+**Example:**
+```c
+ClayKit_BreadcrumbConfig cfg = {0};
+
+ClayKit_BreadcrumbBegin(&ctx, cfg);
+  if (ClayKit_BreadcrumbItem(&ctx, "Home", 4, false, cfg)) {
+      if (IsMouseButtonPressed()) { /* navigate */ }
+  }
+  ClayKit_BreadcrumbSeparator(&ctx, cfg);
+  if (ClayKit_BreadcrumbItem(&ctx, "Products", 8, false, cfg)) {
+      if (IsMouseButtonPressed()) { /* navigate */ }
+  }
+  ClayKit_BreadcrumbSeparator(&ctx, cfg);
+  ClayKit_BreadcrumbItem(&ctx, "Widget", 6, true, cfg);  // current page
+ClayKit_BreadcrumbEnd();
+```
+
+---
+
+### Accordion
+
+Collapsible sections with clickable headers. User controls the open/close state (immediate mode).
+
+```c
+typedef enum {
+    CLAYKIT_ACCORDION_BORDERED = 0,   // Border between items
+    CLAYKIT_ACCORDION_SEPARATED       // Cards with gap
+} ClayKit_AccordionVariant;
+
+typedef struct {
+    ClayKit_ColorScheme color_scheme;
+    ClayKit_Size size;
+    ClayKit_AccordionVariant variant;
+} ClayKit_AccordionConfig;
+
+void ClayKit_AccordionBegin(ClayKit_Context *ctx, ClayKit_AccordionConfig cfg);
+void ClayKit_AccordionItemBegin(ClayKit_Context *ctx, bool is_open, ClayKit_AccordionConfig cfg);
+bool ClayKit_AccordionHeader(
+    ClayKit_Context *ctx,
+    const char *text, int32_t text_len,
+    bool is_open,                  // Controls chevron direction
+    ClayKit_AccordionConfig cfg
+);
+void ClayKit_AccordionContentBegin(ClayKit_Context *ctx, ClayKit_AccordionConfig cfg);
+void ClayKit_AccordionContentEnd(void);
+void ClayKit_AccordionItemEnd(void);
+void ClayKit_AccordionEnd(void);
+```
+
+**Example:**
+```c
+static bool section_open[3] = { true, false, false };
+ClayKit_AccordionConfig cfg = { .variant = CLAYKIT_ACCORDION_BORDERED };
+
+ClayKit_AccordionBegin(&ctx, cfg);
+for (int i = 0; i < 3; i++) {
+    ClayKit_AccordionItemBegin(&ctx, section_open[i], cfg);
+    if (ClayKit_AccordionHeader(&ctx, titles[i], title_lens[i],
+        section_open[i], cfg)) {
+        if (IsMouseButtonPressed()) section_open[i] = !section_open[i];
+    }
+    if (section_open[i]) {
+        ClayKit_AccordionContentBegin(&ctx, cfg);
+        // Render content...
+        CLAY_TEXT(CLAY_STRING("Section content here"), &text_cfg);
+        ClayKit_AccordionContentEnd();
+    }
+    ClayKit_AccordionItemEnd();
 }
-if (ClayKit_Tab(&ctx, "Tab 3", 5, active_tab == 2, cfg)) {
-    if (IsMouseButtonPressed()) active_tab = 2;
+ClayKit_AccordionEnd();
+```
+
+---
+
+### Menu
+
+A floating dropdown menu with items and separators. No built-in trigger - use a Button or any element to toggle it.
+
+```c
+typedef struct {
+    ClayKit_ColorScheme color_scheme;
+    ClayKit_Size size;
+    bool disabled;
+} ClayKit_MenuConfig;
+
+void ClayKit_MenuDropdownBegin(
+    ClayKit_Context *ctx,
+    const char *id, int32_t id_len,
+    ClayKit_MenuConfig cfg
+);
+
+// Returns true if hovered and not disabled
+bool ClayKit_MenuItem(
+    ClayKit_Context *ctx,
+    const char *text, int32_t text_len,
+    bool disabled,
+    ClayKit_MenuConfig cfg
+);
+
+void ClayKit_MenuSeparator(ClayKit_Context *ctx, ClayKit_MenuConfig cfg);
+void ClayKit_MenuDropdownEnd(void);
+```
+
+**Example:**
+```c
+static bool menu_open = false;
+
+if (ClayKit_Button(&ctx, "Actions", 7, (ClayKit_ButtonConfig){0})) {
+    if (IsMouseButtonPressed()) menu_open = !menu_open;
 }
 
-Clay__CloseElement();
+if (menu_open) {
+    ClayKit_MenuConfig cfg = {0};
+    ClayKit_MenuDropdownBegin(&ctx, "actions_menu", 12, cfg);
+    if (ClayKit_MenuItem(&ctx, "Edit", 4, false, cfg)) {
+        if (IsMouseButtonPressed()) { /* handle edit */ menu_open = false; }
+    }
+    if (ClayKit_MenuItem(&ctx, "Duplicate", 9, false, cfg)) {
+        if (IsMouseButtonPressed()) { /* handle duplicate */ menu_open = false; }
+    }
+    ClayKit_MenuSeparator(&ctx, cfg);
+    ClayKit_MenuItem(&ctx, "Delete", 6, true, cfg);  // disabled
+    ClayKit_MenuDropdownEnd();
+}
 ```
 
 ---
 
 ### Modal
 
-A dialog overlay with backdrop.
-
-For modals, you typically use Clay's floating element system directly. ClayKit provides style computation helpers:
+A dialog overlay with backdrop. Uses Clay's floating element system. ClayKit provides style computation.
 
 ```c
-typedef struct {
-    ClayKit_Size size;           // Affects width
-    uint16_t custom_width;       // Override width (0 = use size)
-    uint16_t z_index;            // Stack order (0 = default 1000)
-} ClayKit_ModalConfig;
+typedef enum {
+    CLAYKIT_MODAL_SM = 0,    // 400px
+    CLAYKIT_MODAL_MD,        // 500px
+    CLAYKIT_MODAL_LG,        // 600px
+    CLAYKIT_MODAL_XL,        // 800px
+    CLAYKIT_MODAL_FULL       // Full width with margins
+} ClayKit_ModalSize;
 
 typedef struct {
-    uint16_t width;
-    uint16_t padding;
-    uint16_t gap;
-    uint16_t corner_radius;
-    uint16_t z_index;
-    Clay_Color bg_color;
-    Clay_Color backdrop_color;
-} ClayKit_ModalStyle;
+    ClayKit_ModalSize size;
+    bool close_on_backdrop;      // Close when clicking backdrop
+    uint16_t z_index;            // Z-index (default: 1000)
+} ClayKit_ModalConfig;
 
 ClayKit_ModalStyle ClayKit_ComputeModalStyle(
     ClayKit_Context *ctx,
@@ -583,59 +1146,97 @@ ClayKit_ModalStyle ClayKit_ComputeModalStyle(
 );
 ```
 
-**Example:** See `examples/c-raylib/main.c` for full modal implementation using floating elements.
+**Note:** See `examples/c-raylib/main.c` for full modal implementation using floating elements and the computed style.
 
 ---
 
-### Checkbox
+### Drawer
 
-A checkable box control.
+A slide-in panel from any edge of the screen. Returns true if the backdrop was hovered (for click-to-close).
 
 ```c
-typedef struct {
-    ClayKit_ColorScheme color_scheme;
-    ClayKit_Size size;
-    bool disabled;
-} ClayKit_CheckboxConfig;
+typedef enum {
+    CLAYKIT_DRAWER_LEFT = 0,
+    CLAYKIT_DRAWER_RIGHT,
+    CLAYKIT_DRAWER_TOP,
+    CLAYKIT_DRAWER_BOTTOM
+} ClayKit_DrawerSide;
 
-// Returns true if hovered
-bool ClayKit_Checkbox(
+typedef struct {
+    ClayKit_DrawerSide side;         // Which edge to slide from
+    uint16_t size;                   // Width or height (0 = default 300)
+    bool close_on_backdrop;          // Close on backdrop click
+    uint16_t z_index;                // Z-index (default: 1000)
+} ClayKit_DrawerConfig;
+
+// Returns true if backdrop is hovered (for close on click)
+bool ClayKit_DrawerBegin(
     ClayKit_Context *ctx,
-    bool checked,                // Current checked state
-    ClayKit_CheckboxConfig cfg
+    const char *id, int32_t id_len,
+    ClayKit_DrawerConfig cfg
 );
+void ClayKit_DrawerEnd(void);
 ```
 
 **Example:**
 ```c
-static bool is_checked = false;
+static bool drawer_open = false;
 
-if (ClayKit_Checkbox(&ctx, is_checked, (ClayKit_CheckboxConfig){0})) {
-    if (IsMouseButtonPressed()) {
-        is_checked = !is_checked;
+if (drawer_open) {
+    bool backdrop_hovered = ClayKit_DrawerBegin(&ctx, "drawer1", 7,
+        (ClayKit_DrawerConfig){ .side = CLAYKIT_DRAWER_LEFT });
+    // Render drawer content...
+    CLAY_TEXT(CLAY_STRING("Drawer content"), &text_cfg);
+    ClayKit_DrawerEnd();
+
+    if (backdrop_hovered && IsMouseButtonPressed()) {
+        drawer_open = false;
     }
 }
 ```
 
 ---
 
-### Switch
+### Popover
 
-A toggle switch control.
+A floating content area anchored to its parent element.
 
 ```c
-typedef struct {
-    ClayKit_ColorScheme color_scheme;
-    ClayKit_Size size;
-    bool disabled;
-} ClayKit_SwitchConfig;
+typedef enum {
+    CLAYKIT_POPOVER_TOP = 0,
+    CLAYKIT_POPOVER_BOTTOM,
+    CLAYKIT_POPOVER_LEFT,
+    CLAYKIT_POPOVER_RIGHT
+} ClayKit_PopoverPosition;
 
-// Returns true if hovered
-bool ClayKit_Switch(
+typedef struct {
+    ClayKit_PopoverPosition position;  // Position relative to anchor
+    uint16_t z_index;                  // Z-index (default: 50)
+} ClayKit_PopoverConfig;
+
+void ClayKit_PopoverBegin(
     ClayKit_Context *ctx,
-    bool on,                     // Current on/off state
-    ClayKit_SwitchConfig cfg
+    const char *id, int32_t id_len,
+    ClayKit_PopoverConfig cfg
 );
+void ClayKit_PopoverEnd(void);
+```
+
+**Example:**
+```c
+static bool popover_open = false;
+
+// Trigger element (popover attaches to parent)
+if (ClayKit_Button(&ctx, "Info", 4, (ClayKit_ButtonConfig){0})) {
+    if (IsMouseButtonPressed()) popover_open = !popover_open;
+}
+
+if (popover_open) {
+    ClayKit_PopoverBegin(&ctx, "info_pop", 8,
+        (ClayKit_PopoverConfig){ .position = CLAYKIT_POPOVER_BOTTOM });
+    CLAY_TEXT(CLAY_STRING("Additional information here"), &text_cfg);
+    ClayKit_PopoverEnd();
+}
 ```
 
 ---
@@ -841,6 +1442,12 @@ claykit.init(&ctx, &theme, &state_buf);
 // Badge
 claykit.badge(&ctx, "New", .{ .color_scheme = .success });
 
+// Tag
+claykit.tag(&ctx, "Label", .{ .closeable = true });
+
+// Stat
+claykit.stat(&ctx, "Users", "1,024", "Since launch", .{});
+
 // Button (returns hover state)
 if (claykit.button(&ctx, "btn1", "Click", .{})) {
     if (raylib.isMouseButtonPressed(.left)) {
@@ -853,6 +1460,38 @@ claykit.progress(&ctx, "prog1", 0.5, .{});
 
 // Slider
 _ = claykit.slider(&ctx, "slider1", value, .{});
+
+// Link
+if (claykit.link(&ctx, "Click here", .{ .variant = .underline })) {
+    // Hovered
+}
+
+// Breadcrumb (convenience wrapper - renders all items with separators)
+const crumbs = [_][]const u8{ "Home", "Products", "Widget" };
+if (claykit.breadcrumb(&ctx, &crumbs, .{})) |hovered_idx| {
+    // An item was hovered (last item = current page, not interactive)
+}
+
+// Accordion
+claykit.accordionBegin(&ctx, .{});
+claykit.accordionItemBegin(&ctx, is_open, .{});
+if (claykit.accordionHeader(&ctx, "Section 1", is_open, .{})) {
+    if (raylib.isMouseButtonPressed(.left)) is_open = !is_open;
+}
+if (is_open) {
+    claykit.accordionContentBegin(&ctx, .{});
+    // Content...
+    claykit.accordionContentEnd();
+}
+claykit.accordionItemEnd();
+claykit.accordionEnd();
+
+// Menu
+claykit.menuDropdownBegin(&ctx, "menu1", .{});
+if (claykit.menuItem(&ctx, "Edit", false, .{})) { /* hovered */ }
+claykit.menuSeparator(&ctx, .{});
+_ = claykit.menuItem(&ctx, "Delete", true, .{});  // disabled
+claykit.menuDropdownEnd();
 
 // Alert
 claykit.alertText(&ctx, "alert1", "Message", .{ .color_scheme = .warning });

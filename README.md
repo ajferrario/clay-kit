@@ -17,19 +17,45 @@ A single-header C99 library providing ready-to-use UI components built on Clay's
 
 ## Components
 
+### Typography & Data Display
 | Component | Description |
 |-----------|-------------|
 | **Badge** | Status labels with solid/subtle/outline variants |
-| **Button** | Interactive buttons with hover states |
-| **Progress** | Progress bars with color schemes |
+| **Tag** | Closeable labels with solid/subtle/outline variants |
+| **Stat** | Label/value/help-text statistics display |
+| **List** | Ordered (numbered) or unordered (bullet) lists |
+| **Table** | Tabular data with optional striping and borders |
+
+### Form Controls
+| Component | Description |
+|-----------|-------------|
+| **Button** | Interactive buttons with solid/outline/ghost variants |
+| **Text Input** | Full text editing with cursor positioning and selection |
+| **Checkbox** | Checkable boxes with color schemes |
+| **Radio** | Radio buttons for single-selection groups |
+| **Switch** | Toggle switches with on/off state |
 | **Slider** | Horizontal value sliders |
-| **Alert** | Notification boxes |
+| **Select** | Dropdown select with trigger and options |
+
+### Feedback & Overlay
+| Component | Description |
+|-----------|-------------|
+| **Alert** | Notification boxes with subtle/solid/outline variants |
+| **Progress** | Progress bars with color schemes |
+| **Spinner** | Animated loading indicator |
 | **Tooltip** | Text hints |
-| **Tabs** | Tab navigation (line and enclosed variants) |
 | **Modal** | Dialog overlays with backdrop |
-| **Checkbox** | Checkable boxes |
-| **Switch** | Toggle switches |
-| **Text Input** | Full text editing with cursor positioning |
+| **Drawer** | Slide-in panels from any edge |
+| **Popover** | Floating content anchored to parent |
+
+### Navigation & Disclosure
+| Component | Description |
+|-----------|-------------|
+| **Tabs** | Tab navigation (line, enclosed, soft variants) |
+| **Link** | Text links with underline/hover-underline/none variants |
+| **Breadcrumb** | Horizontal navigation path with separators |
+| **Accordion** | Collapsible sections (bordered/separated variants) |
+| **Menu** | Floating dropdown menu with items and separators |
 
 ## Quick Start
 
@@ -180,7 +206,7 @@ clay-kit/
 │   ├── c-raylib/       # C + Raylib demo
 │   └── zig-raylib/     # Zig + Raylib demo
 ├── tests/
-│   └── test_clay_kit.c # Unit tests (82 tests)
+│   └── test_clay_kit.c # Unit tests (133 tests)
 └── docs/               # Documentation
 ```
 
