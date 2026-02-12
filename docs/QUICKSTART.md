@@ -403,9 +403,310 @@ if (sel_open) {
 }
 ```
 
+---
+
+## Zig Quick Start
+
+ClayKit ships hand-written Zig bindings that wrap the C API with an ergonomic, Zig-idiomatic interface.
+
+### Prerequisites
+
+- Zig 0.16+ (nightly)
+- [zclay](https://github.com/johan0A/clay-zig-bindings) (Clay Zig bindings)
+- A renderer (raylib-zig, etc.)
+
+### Installation
+
+Add ClayKit as a dependency in your `build.zig.zon`:
+
+```zig
+.dependencies = .{
+    .clay_kit = .{
+        .url = "git+https://github.com/user/clay-kit?ref=v1.0.0#<commit>",
+        .hash = "...",
+    },
+},
+```
+
+Then in your `build.zig`:
+
+```zig
+const claykit_dep = b.dependency("clay_kit", .{
+    .target = target,
+    .optimize = optimize,
+});
+exe.root_module.addImport("claykit", claykit_dep.module("claykit"));
+```
+
+### Minimal Example
+
+```zig
+const std = @import("std");
+const zclay = @import("zclay");
+const claykit = @import("claykit");
+
+pub fn main() !void {
+    // 1. Initialize Clay (via zclay)
+    const min_memory_size: u32 = zclay.minMemorySize();
+    const memory = try std.heap.page_allocator.alloc(u8, min_memory_size);
+    defer std.heap.page_allocator.free(memory);
+
+    const arena = zclay.createArenaWithCapacityAndMemory(memory);
+    _ = zclay.initialize(arena, .{ .w = 800, .h = 600 }, .{});
+    zclay.setMeasureTextFunction(void, {}, measureText);
+
+    // 2. Initialize ClayKit
+    var theme = claykit.Theme.light;
+    var state_buf: [64]claykit.State = undefined;
+    var ctx: claykit.Context = .{};
+    claykit.init(&ctx, &theme, &state_buf);
+
+    // 3. Build UI
+    zclay.beginLayout();
+
+    zclay.UI()(.{
+        .layout = .{
+            .sizing = .{ .w = .grow, .h = .grow },
+            .padding = zclay.Padding.all(20),
+            .child_gap = 10,
+            .direction = .top_to_bottom,
+        },
+    })({
+        // Badge
+        claykit.badge(&ctx, "Hello", .{});
+
+        // Button
+        _ = claykit.button(&ctx, "btn1", "Click Me", .{});
+
+        // Progress bar
+        claykit.progress(&ctx, "prog1", 0.7, .{});
+    });
+
+    // 4. Get render commands
+    const commands = zclay.endLayout();
+
+    // 5. Render with your backend
+    for (commands) |cmd| {
+        switch (cmd.command_type) {
+            .rectangle => { /* draw rectangle */ },
+            .text => { /* draw text */ },
+            .border => { /* draw border */ },
+            else => {},
+        }
+    }
+}
+
+fn measureText(text: []const u8, config: *zclay.TextElementConfig, _: void) zclay.Dimensions {
+    // Implement based on your renderer
+    return .{ .w = @as(f32, @floatFromInt(text.len)) * 8, .h = @floatFromInt(config.font_size) };
+}
+```
+
+### Adding Interactivity
+
+#### Button Clicks
+
+```zig
+const hovered = claykit.button(&ctx, "save", "Save", .{});
+
+// After endLayout, check for clicks
+if (hovered and raylib.isMouseButtonPressed(.left)) {
+    doSave();
+}
+```
+
+#### Text Input
+
+```zig
+// Setup (once)
+var input_buffer: [256]u8 = undefined;
+var input_state = claykit.InputState.init(&input_buffer);
+
+// Each frame:
+// 1. Handle keyboard if focused
+if (input_state.isFocused()) {
+    if (raylib.isKeyPressed(.backspace)) {
+        _ = claykit.inputHandleKey(&input_state, .backspace, getModifiers());
+    }
+    var char = raylib.getCharPressed();
+    while (char != 0) {
+        _ = claykit.inputHandleChar(&input_state, @intCast(char));
+        char = raylib.getCharPressed();
+    }
+}
+
+// 2. Render
+const hovered = claykit.textInput(&ctx, "input1", &input_state, .{}, "Type here...");
+
+// 3. Handle click for focus
+if (raylib.isMouseButtonPressed(.left)) {
+    if (hovered) {
+        input_state.setFocused(true);
+    } else {
+        input_state.setFocused(false);
+    }
+}
+```
+
+#### Tabs
+
+```zig
+var active_tab: usize = 0;
+
+// Render tab bar (returns index of hovered tab, or null)
+if (claykit.tabs(&ctx, "tabs", &.{ "Tab 1", "Tab 2" }, active_tab, .{})) |clicked| {
+    if (raylib.isMouseButtonPressed(.left)) {
+        active_tab = clicked;
+    }
+}
+
+// Render content based on active_tab
+if (active_tab == 0) {
+    // Tab 1 content
+} else {
+    // Tab 2 content
+}
+```
+
+### Theming
+
+```zig
+// Light theme (default)
+var theme = claykit.Theme.light;
+
+// Dark theme
+var theme = claykit.Theme.dark;
+
+// Custom theme
+var theme = claykit.Theme{
+    .primary = .{ .r = 0, .g = 122, .b = 255, .a = 255 },
+    .bg = .{ .r = 255, .g = 255, .b = 255, .a = 255 },
+    .fg = .{ .r = 0, .g = 0, .b = 0, .a = 255 },
+    // ... other fields
+};
+```
+
+### Color Schemes and Variants
+
+```zig
+// Color schemes
+_ = claykit.button(&ctx, "b1", "Primary", .{});
+_ = claykit.button(&ctx, "b2", "Success", .{ .color_scheme = .success });
+claykit.alertText(&ctx, "a1", "Warning!", .{ .color_scheme = .warning });
+claykit.badge(&ctx, "Error", .{ .color_scheme = .@"error" });
+
+// Button variants
+_ = claykit.button(&ctx, "b3", "Solid", .{ .variant = .solid });
+_ = claykit.button(&ctx, "b4", "Outline", .{ .variant = .outline });
+_ = claykit.button(&ctx, "b5", "Ghost", .{ .variant = .ghost });
+
+// Sizes
+_ = claykit.button(&ctx, "b6", "Small", .{ .size = .sm });
+_ = claykit.button(&ctx, "b7", "Large", .{ .size = .lg });
+```
+
+### Navigation Components
+
+#### Link
+
+```zig
+if (claykit.link(&ctx, "Learn more", .{ .variant = .underline })) {
+    if (raylib.isMouseButtonPressed(.left)) { /* navigate */ }
+}
+```
+
+#### Breadcrumb
+
+```zig
+if (claykit.breadcrumb(&ctx, &.{ "Home", "Docs", "API" }, .{})) |hovered_idx| {
+    if (raylib.isMouseButtonPressed(.left)) {
+        // Navigate to hovered_idx
+    }
+}
+```
+
+#### Accordion
+
+```zig
+var open = [3]bool{ true, false, false };
+const headers = [_][]const u8{ "Section 1", "Section 2", "Section 3" };
+
+claykit.accordionBegin(&ctx, .{});
+for (headers, 0..) |header, i| {
+    claykit.accordionItemBegin(&ctx, open[i], .{});
+    if (claykit.accordionHeader(&ctx, header, open[i], .{})) {
+        if (raylib.isMouseButtonPressed(.left)) open[i] = !open[i];
+    }
+    if (open[i]) {
+        claykit.accordionContentBegin(&ctx, .{});
+        zclay.text("Content here", claykit.textStyle(&ctx, .{}));
+        claykit.accordionContentEnd();
+    }
+    claykit.accordionItemEnd();
+}
+claykit.accordionEnd();
+```
+
+#### Menu
+
+```zig
+var menu_open = false;
+
+if (claykit.button(&ctx, "menu_btn", "Actions", .{})) {
+    if (raylib.isMouseButtonPressed(.left)) menu_open = !menu_open;
+}
+if (menu_open) {
+    claykit.menuDropdownBegin(&ctx, "menu", .{});
+    if (claykit.menuItem(&ctx, "Edit", false, .{})) {
+        if (raylib.isMouseButtonPressed(.left)) { /* handle */ menu_open = false; }
+    }
+    claykit.menuSeparator(&ctx, .{});
+    _ = claykit.menuItem(&ctx, "Delete", true, .{}); // disabled
+    claykit.menuDropdownEnd();
+}
+```
+
+### Data Display Components
+
+```zig
+// Tag
+claykit.tag(&ctx, "React", .{ .color_scheme = .primary, .closeable = true });
+
+// Stat
+claykit.stat(&ctx, "Revenue", "$12,345", "+8% this month", .{});
+
+// List
+claykit.listBegin(&ctx, .{ .ordered = true });
+claykit.listItem(&ctx, "First step", 0, .{ .ordered = true });
+claykit.listItem(&ctx, "Second step", 1, .{ .ordered = true });
+claykit.listEnd();
+
+// Select
+var selected_option: ?usize = null;
+var sel_open = false;
+const options = [_][]const u8{ "Apple", "Banana", "Cherry" };
+
+const display = if (selected_option) |idx| options[idx] else null;
+const trigger_hovered = claykit.selectTrigger(&ctx, "sel", display, .{});
+if (sel_open) {
+    claykit.selectDropdownBegin(&ctx, "sel_drop", .{});
+    for (options, 0..) |opt, i| {
+        const hovered = claykit.selectOption(&ctx, opt, if (selected_option) |idx| idx == i else false, .{});
+        if (hovered and raylib.isMouseButtonPressed(.left)) {
+            selected_option = i;
+            sel_open = false;
+        }
+    }
+    claykit.selectDropdownEnd();
+}
+if (trigger_hovered and raylib.isMouseButtonPressed(.left)) {
+    sel_open = !sel_open;
+}
+```
+
 ## Next Steps
 
 - See [API Reference](API.md) for complete documentation
 - See [Architecture](ARCHITECTURE.md) for internal design details
-- Check `examples/c-raylib/` for a full working example
-- Check `examples/zig-raylib/` for Zig usage
+- Check `examples/c-raylib/` for a full C + raylib example
+- Check `examples/zig-raylib/` for a full Zig + raylib example

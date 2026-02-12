@@ -6,6 +6,31 @@ Zero-allocation UI components for [Clay](https://github.com/nicbarker/clay).
 
 A single-header C99 library providing ready-to-use UI components built on Clay's layout system. Includes hand-written Zig bindings for seamless integration.
 
+## Installation
+
+### C
+
+Copy `clay_kit.h` and `vendor/clay.h` into your project. In **one** source file:
+
+```c
+#define CLAY_IMPLEMENTATION
+#include "clay.h"
+#define CLAYKIT_IMPLEMENTATION
+#include "clay_kit.h"
+```
+
+### Zig
+
+Add ClayKit as a dependency in your `build.zig.zon`, then in `build.zig`:
+
+```zig
+const claykit_dep = b.dependency("clay_kit", .{
+    .target = target,
+    .optimize = optimize,
+});
+exe.root_module.addImport("claykit", claykit_dep.module("claykit"));
+```
+
 ## Features
 
 - **Zero heap allocation** - You provide all memory
@@ -206,7 +231,7 @@ clay-kit/
 │   ├── c-raylib/       # C + Raylib demo
 │   └── zig-raylib/     # Zig + Raylib demo
 ├── tests/
-│   └── test_clay_kit.c # Unit tests (133 tests)
+│   └── test_clay_kit.c # Unit tests (153 tests)
 └── docs/               # Documentation
 ```
 
@@ -223,5 +248,6 @@ MIT
 
 ## Credits
 
+- Built with [Claude](https://claude.ai) by Anthropic
 - [Clay](https://github.com/nicbarker/clay) by Nic Barker - The underlying layout library
 - [Raylib](https://github.com/raysan5/raylib) by Ramon Santamaria - Used in examples

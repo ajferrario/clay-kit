@@ -26,6 +26,42 @@
 #define WINDOW_WIDTH 1280
 #define WINDOW_HEIGHT 800
 
+/* Demo icon IDs */
+#define ICON_INFO    1
+#define ICON_SUCCESS 2
+#define ICON_WARNING 3
+#define ICON_ERROR   4
+
+/* Icon callback - draws simple shapes for each icon */
+static void icon_callback(uint16_t icon_id, Clay_BoundingBox box, void *user_data) {
+    (void)user_data;
+    float cx = box.x + box.width / 2.0f;
+    float cy = box.y + box.height / 2.0f;
+    float r = box.width / 2.0f - 1.0f;
+
+    switch (icon_id) {
+        case ICON_INFO:
+            DrawCircle((int)cx, (int)cy, r, (Color){ 66, 133, 244, 255 });
+            DrawText("i", (int)(cx - 3), (int)(cy - 6), 12, WHITE);
+            break;
+        case ICON_SUCCESS:
+            DrawCircle((int)cx, (int)cy, r, (Color){ 34, 197, 94, 255 });
+            DrawText("v", (int)(cx - 4), (int)(cy - 6), 12, WHITE);
+            break;
+        case ICON_WARNING:
+            DrawCircle((int)cx, (int)cy, r, (Color){ 251, 191, 36, 255 });
+            DrawText("!", (int)(cx - 3), (int)(cy - 6), 12, WHITE);
+            break;
+        case ICON_ERROR:
+            DrawCircle((int)cx, (int)cy, r, (Color){ 239, 68, 68, 255 });
+            DrawText("x", (int)(cx - 4), (int)(cy - 6), 12, WHITE);
+            break;
+        default:
+            DrawCircle((int)cx, (int)cy, r, (Color){ 150, 150, 150, 255 });
+            break;
+    }
+}
+
 /* Raylib font for text rendering */
 static Font raylib_font;
 
@@ -238,6 +274,7 @@ int main(void) {
     ClayKit_Context ctx = {0};
     ClayKit_Init(&ctx, &theme, state_buf, 64);
     ctx.measure_text = measure_text_for_claykit;
+    ctx.icon_callback = icon_callback;
 
     /* Initialize text input state */
     memset(input_buffer, 0, sizeof(input_buffer));
@@ -468,6 +505,14 @@ int main(void) {
                     }
                     break;
                 }
+                case CLAY_RENDER_COMMAND_TYPE_CUSTOM: {
+                    Clay_CustomRenderData *custom = &cmd->renderData.custom;
+                    ClayKit_IconRenderData *icon_data = (ClayKit_IconRenderData *)custom->customData;
+                    if (icon_data && icon_data->type == CLAYKIT_CUSTOM_ICON && ctx.icon_callback) {
+                        ctx.icon_callback(icon_data->icon_id, cmd->boundingBox, ctx.icon_user_data);
+                    }
+                    break;
+                }
                 default:
                     break;
             }
@@ -528,7 +573,7 @@ static void render_demo_ui(ClayKit_Context *ctx, ClayKit_Theme *theme) {
 
     /* Button */
     add_text("Button:", theme->font_size.sm, theme->muted);
-    ClayKit_Button(ctx, "Click Me", 8, (ClayKit_ButtonConfig){0});
+    ClayKit_Button(ctx, "Click Me", 8, (ClayKit_ButtonConfig){ .icon_left = { .id = ICON_SUCCESS, .size = 16 } });
 
     /* Text Input */
     add_text("Text Input:", theme->font_size.sm, theme->muted);
@@ -624,8 +669,8 @@ static void render_demo_ui(ClayKit_Context *ctx, ClayKit_Theme *theme) {
 
     /* Alert */
     add_text("Alerts:", theme->font_size.sm, theme->muted);
-    ClayKit_AlertText(ctx, "Info alert message", 18, (ClayKit_AlertConfig){0});
-    ClayKit_AlertText(ctx, "Success!", 8, (ClayKit_AlertConfig){ .color_scheme = CLAYKIT_COLOR_SUCCESS });
+    ClayKit_AlertText(ctx, "Info alert message", 18, (ClayKit_AlertConfig){ .icon = { .id = ICON_INFO } });
+    ClayKit_AlertText(ctx, "Success!", 8, (ClayKit_AlertConfig){ .color_scheme = CLAYKIT_COLOR_SUCCESS, .icon = { .id = ICON_SUCCESS } });
 
     /* Tooltip */
     add_text("Tooltip:", theme->font_size.sm, theme->muted);

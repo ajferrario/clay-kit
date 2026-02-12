@@ -2471,6 +2471,378 @@ TEST(menu_style_separator_color) {
 }
 
 /* ============================================================================
+ * BeginFrame Tests
+ * ============================================================================ */
+
+TEST(begin_frame_updates_prev_focused) {
+    ClayKit_Theme theme = CLAYKIT_THEME_LIGHT;
+    ClayKit_State state_buf[4];
+    ClayKit_Context ctx;
+    ClayKit_Init(&ctx, &theme, state_buf, 4);
+
+    Clay_ElementId elem = { .id = 42 };
+    ClayKit_SetFocus(&ctx, elem);
+    ASSERT_EQ(ctx.focused_id, 42);
+    ASSERT_EQ(ctx.prev_focused_id, 0);
+
+    ClayKit_BeginFrame(&ctx);
+    ASSERT_EQ(ctx.prev_focused_id, 42);
+    ASSERT(!ClayKit_FocusChanged(&ctx));
+
+    TEST_PASS();
+}
+
+/* ============================================================================
+ * FocusNext/FocusPrev Tests (TODO stubs - verify they don't crash)
+ * ============================================================================ */
+
+TEST(focus_next_noop) {
+    ClayKit_Theme theme = CLAYKIT_THEME_LIGHT;
+    ClayKit_State state_buf[4];
+    ClayKit_Context ctx;
+    ClayKit_Init(&ctx, &theme, state_buf, 4);
+
+    /* Should not crash, currently a no-op */
+    ClayKit_FocusNext(&ctx);
+    ASSERT_EQ(ctx.focused_id, 0);
+
+    TEST_PASS();
+}
+
+TEST(focus_prev_noop) {
+    ClayKit_Theme theme = CLAYKIT_THEME_LIGHT;
+    ClayKit_State state_buf[4];
+    ClayKit_Context ctx;
+    ClayKit_Init(&ctx, &theme, state_buf, 4);
+
+    /* Should not crash, currently a no-op */
+    ClayKit_FocusPrev(&ctx);
+    ASSERT_EQ(ctx.focused_id, 0);
+
+    TEST_PASS();
+}
+
+/* ============================================================================
+ * Typography Style Tests
+ * ============================================================================ */
+
+TEST(text_style_defaults) {
+    ClayKit_Theme theme = CLAYKIT_THEME_LIGHT;
+    ClayKit_State state_buf[4];
+    ClayKit_Context ctx;
+    ClayKit_Init(&ctx, &theme, state_buf, 4);
+
+    ClayKit_TextConfig cfg = {0};
+    Clay_TextElementConfig style = ClayKit_TextStyle(&ctx, cfg);
+
+    ASSERT_EQ(style.fontSize, theme.font_size.md);
+    ASSERT_EQ(style.fontId, theme.font_id.body);
+    ASSERT_EQ(style.textColor.r, theme.fg.r);
+    ASSERT_EQ(style.textColor.g, theme.fg.g);
+    ASSERT_EQ(style.letterSpacing, 0);
+    ASSERT_EQ(style.lineHeight, 0);
+
+    TEST_PASS();
+}
+
+TEST(text_style_custom_size) {
+    ClayKit_Theme theme = CLAYKIT_THEME_LIGHT;
+    ClayKit_State state_buf[4];
+    ClayKit_Context ctx;
+    ClayKit_Init(&ctx, &theme, state_buf, 4);
+
+    ClayKit_TextConfig cfg = { .size = CLAYKIT_SIZE_XL };
+    Clay_TextElementConfig style = ClayKit_TextStyle(&ctx, cfg);
+
+    ASSERT_EQ(style.fontSize, theme.font_size.xl);
+
+    TEST_PASS();
+}
+
+TEST(text_style_custom_color) {
+    ClayKit_Theme theme = CLAYKIT_THEME_LIGHT;
+    ClayKit_State state_buf[4];
+    ClayKit_Context ctx;
+    ClayKit_Init(&ctx, &theme, state_buf, 4);
+
+    Clay_Color red = { 255, 0, 0, 255 };
+    ClayKit_TextConfig cfg = { .color = red };
+    Clay_TextElementConfig style = ClayKit_TextStyle(&ctx, cfg);
+
+    ASSERT_EQ(style.textColor.r, 255);
+    ASSERT_EQ(style.textColor.g, 0);
+    ASSERT_EQ(style.textColor.b, 0);
+
+    TEST_PASS();
+}
+
+TEST(heading_style_sizes) {
+    ClayKit_Theme theme = CLAYKIT_THEME_LIGHT;
+    ClayKit_State state_buf[4];
+    ClayKit_Context ctx;
+    ClayKit_Init(&ctx, &theme, state_buf, 4);
+
+    Clay_TextElementConfig xs = ClayKit_HeadingStyle(&ctx, (ClayKit_HeadingConfig){ .size = CLAYKIT_SIZE_XS });
+    Clay_TextElementConfig xl = ClayKit_HeadingStyle(&ctx, (ClayKit_HeadingConfig){ .size = CLAYKIT_SIZE_XL });
+
+    /* XL (h1) should be larger than XS (h5/h6) */
+    ASSERT(xl.fontSize > xs.fontSize);
+    /* XS heading uses md font size */
+    ASSERT_EQ(xs.fontSize, theme.font_size.md);
+
+    TEST_PASS();
+}
+
+TEST(heading_style_custom_font) {
+    ClayKit_Theme theme = CLAYKIT_THEME_LIGHT;
+    theme.font_id.heading = 5;
+    ClayKit_State state_buf[4];
+    ClayKit_Context ctx;
+    ClayKit_Init(&ctx, &theme, state_buf, 4);
+
+    ClayKit_HeadingConfig cfg = { .font_id = 0 };
+    Clay_TextElementConfig style = ClayKit_HeadingStyle(&ctx, cfg);
+
+    /* Default heading font when font_id=0 */
+    ASSERT_EQ(style.fontId, 5);
+
+    TEST_PASS();
+}
+
+/* ============================================================================
+ * Input Edge Case Tests
+ * ============================================================================ */
+
+TEST(input_backspace_empty) {
+    ClayKit_InputState s = { .buf = NULL, .cap = 0, .len = 0, .cursor = 0, .select_start = 0, .flags = 0 };
+    char buf[8] = {0};
+    s.buf = buf;
+    s.cap = 8;
+
+    /* Backspace on empty input should return false */
+    bool changed = ClayKit_InputHandleKey(&s, CLAYKIT_KEY_BACKSPACE, 0);
+    ASSERT(!changed);
+    ASSERT_EQ(s.len, 0);
+    ASSERT_EQ(s.cursor, 0);
+
+    TEST_PASS();
+}
+
+TEST(input_full_selection_replace) {
+    char buf[16] = "Hello";
+    ClayKit_InputState s = { .buf = buf, .cap = 16, .len = 5, .cursor = 5, .select_start = 0, .flags = 0 };
+
+    /* Select all (cursor=5, select_start=0), then type 'X' */
+    bool changed = ClayKit_InputHandleChar(&s, 'X');
+    ASSERT(changed);
+    ASSERT_EQ(s.len, 1);
+    ASSERT_EQ(s.cursor, 1);
+    ASSERT_EQ(buf[0], 'X');
+
+    TEST_PASS();
+}
+
+TEST(input_home_shift_select) {
+    char buf[16] = "Hello";
+    ClayKit_InputState s = { .buf = buf, .cap = 16, .len = 5, .cursor = 3, .select_start = 3, .flags = 0 };
+
+    /* Shift+Home should select from cursor to start */
+    ClayKit_InputHandleKey(&s, CLAYKIT_KEY_HOME, CLAYKIT_MOD_SHIFT);
+    ASSERT_EQ(s.cursor, 0);
+    ASSERT_EQ(s.select_start, 3);
+
+    TEST_PASS();
+}
+
+TEST(input_double_backspace) {
+    char buf[16] = "AB";
+    ClayKit_InputState s = { .buf = buf, .cap = 16, .len = 2, .cursor = 2, .select_start = 2, .flags = 0 };
+
+    ClayKit_InputHandleKey(&s, CLAYKIT_KEY_BACKSPACE, 0);
+    ASSERT_EQ(s.len, 1);
+    ASSERT_EQ(s.cursor, 1);
+
+    ClayKit_InputHandleKey(&s, CLAYKIT_KEY_BACKSPACE, 0);
+    ASSERT_EQ(s.len, 0);
+    ASSERT_EQ(s.cursor, 0);
+
+    TEST_PASS();
+}
+
+/* ============================================================================
+ * Icon Data Tests
+ * ============================================================================ */
+
+TEST(icon_render_data_stores_values) {
+    /* Access the ring buffer directly since we include CLAYKIT_IMPLEMENTATION */
+    claykit_icon_slot_idx = 0;
+    ClayKit_IconRenderData *slot = &claykit_icon_slots[0];
+
+    slot->type = CLAYKIT_CUSTOM_ICON;
+    slot->icon_id = 42;
+    slot->color = (Clay_Color){ 255, 0, 0, 255 };
+
+    ASSERT_EQ(slot->type, CLAYKIT_CUSTOM_ICON);
+    ASSERT_EQ(slot->icon_id, 42);
+    ASSERT_EQ(slot->color.r, 255);
+    ASSERT_EQ(slot->color.g, 0);
+
+    TEST_PASS();
+}
+
+TEST(icon_render_data_ring_wraps) {
+    /* Verify wrapping at boundary */
+    claykit_icon_slot_idx = 31;
+    ClayKit_IconRenderData *slot31 = &claykit_icon_slots[31 % 32];
+    slot31->icon_id = 100;
+
+    claykit_icon_slot_idx = 32;
+    ClayKit_IconRenderData *slot0 = &claykit_icon_slots[32 % 32];
+    slot0->icon_id = 200;
+
+    /* Slot 0 should be overwritten */
+    ASSERT_EQ(claykit_icon_slots[0].icon_id, 200);
+    ASSERT_EQ(claykit_icon_slots[31].icon_id, 100);
+
+    /* Reset for other tests */
+    claykit_icon_slot_idx = 0;
+
+    TEST_PASS();
+}
+
+/* ============================================================================
+ * Tooltip Size Tests
+ * ============================================================================ */
+
+TEST(tooltip_style_sizes) {
+    ClayKit_Theme theme = CLAYKIT_THEME_LIGHT;
+    ClayKit_State state_buf[4];
+    ClayKit_Context ctx;
+    ClayKit_Init(&ctx, &theme, state_buf, 4);
+
+    /* All positions should return same style */
+    ClayKit_TooltipStyle top = ClayKit_ComputeTooltipStyle(&ctx, (ClayKit_TooltipConfig){ .position = CLAYKIT_TOOLTIP_TOP });
+    ClayKit_TooltipStyle bottom = ClayKit_ComputeTooltipStyle(&ctx, (ClayKit_TooltipConfig){ .position = CLAYKIT_TOOLTIP_BOTTOM });
+
+    ASSERT_EQ(top.font_size, bottom.font_size);
+    ASSERT_EQ(top.padding_x, bottom.padding_x);
+    ASSERT_EQ(top.corner_radius, bottom.corner_radius);
+
+    TEST_PASS();
+}
+
+/* ============================================================================
+ * Alert Icon Size Tests
+ * ============================================================================ */
+
+TEST(alert_style_icon_size) {
+    ClayKit_Theme theme = CLAYKIT_THEME_LIGHT;
+    ClayKit_State state_buf[4];
+    ClayKit_Context ctx;
+    ClayKit_Init(&ctx, &theme, state_buf, 4);
+
+    /* Default icon size when not specified */
+    ClayKit_AlertConfig cfg1 = { .icon = { .id = 1, .size = 0 } };
+    ClayKit_AlertStyle style1 = ClayKit_ComputeAlertStyle(&ctx, cfg1);
+    ASSERT_EQ(style1.icon_size, 20);
+
+    /* Custom icon size */
+    ClayKit_AlertConfig cfg2 = { .icon = { .id = 1, .size = 32 } };
+    ClayKit_AlertStyle style2 = ClayKit_ComputeAlertStyle(&ctx, cfg2);
+    ASSERT_EQ(style2.icon_size, 32);
+
+    TEST_PASS();
+}
+
+/* ============================================================================
+ * Checkbox/Switch Disabled Tests
+ * ============================================================================ */
+
+TEST(checkbox_disabled_state) {
+    ClayKit_Theme theme = CLAYKIT_THEME_LIGHT;
+    ClayKit_State state_buf[4];
+    ClayKit_Context ctx;
+    ClayKit_Init(&ctx, &theme, state_buf, 4);
+
+    ClayKit_CheckboxConfig cfg = { .color_scheme = CLAYKIT_COLOR_PRIMARY, .disabled = true };
+
+    /* Disabled checked: muted color */
+    Clay_Color disabled_checked = ClayKit_CheckboxBgColor(&ctx, cfg, true, false);
+    ASSERT_EQ(disabled_checked.r, theme.muted.r);
+
+    /* Disabled unchecked: border color */
+    Clay_Color disabled_unchecked = ClayKit_CheckboxBgColor(&ctx, cfg, false, false);
+    ASSERT_EQ(disabled_unchecked.r, theme.border.r);
+
+    TEST_PASS();
+}
+
+TEST(switch_disabled_state) {
+    ClayKit_Theme theme = CLAYKIT_THEME_LIGHT;
+    ClayKit_State state_buf[4];
+    ClayKit_Context ctx;
+    ClayKit_Init(&ctx, &theme, state_buf, 4);
+
+    ClayKit_SwitchConfig cfg = { .color_scheme = CLAYKIT_COLOR_SUCCESS, .disabled = true };
+
+    /* Disabled on: muted color */
+    Clay_Color disabled_on = ClayKit_SwitchBgColor(&ctx, cfg, true, false);
+    ASSERT_EQ(disabled_on.r, theme.muted.r);
+
+    /* Disabled off: border color */
+    Clay_Color disabled_off = ClayKit_SwitchBgColor(&ctx, cfg, false, false);
+    ASSERT_EQ(disabled_off.r, theme.border.r);
+
+    TEST_PASS();
+}
+
+/* ============================================================================
+ * Popover Position Tests
+ * ============================================================================ */
+
+TEST(popover_style_positions) {
+    ClayKit_Theme theme = CLAYKIT_THEME_LIGHT;
+    ClayKit_State state_buf[4];
+    ClayKit_Context ctx;
+    ClayKit_Init(&ctx, &theme, state_buf, 4);
+
+    /* All positions should have same styling (only layout changes) */
+    ClayKit_PopoverStyle top = ClayKit_ComputePopoverStyle(&ctx, (ClayKit_PopoverConfig){ .position = CLAYKIT_POPOVER_TOP });
+    ClayKit_PopoverStyle bottom = ClayKit_ComputePopoverStyle(&ctx, (ClayKit_PopoverConfig){ .position = CLAYKIT_POPOVER_BOTTOM });
+    ClayKit_PopoverStyle left = ClayKit_ComputePopoverStyle(&ctx, (ClayKit_PopoverConfig){ .position = CLAYKIT_POPOVER_LEFT });
+    ClayKit_PopoverStyle right = ClayKit_ComputePopoverStyle(&ctx, (ClayKit_PopoverConfig){ .position = CLAYKIT_POPOVER_RIGHT });
+
+    ASSERT_EQ(top.bg_color.r, bottom.bg_color.r);
+    ASSERT_EQ(top.padding, left.padding);
+    ASSERT_EQ(top.corner_radius, right.corner_radius);
+
+    TEST_PASS();
+}
+
+/* ============================================================================
+ * Drawer Side Tests
+ * ============================================================================ */
+
+TEST(drawer_style_sides) {
+    ClayKit_Theme theme = CLAYKIT_THEME_LIGHT;
+    ClayKit_State state_buf[4];
+    ClayKit_Context ctx;
+    ClayKit_Init(&ctx, &theme, state_buf, 4);
+
+    /* All sides should produce same styling (only layout differs) */
+    ClayKit_DrawerStyle left = ClayKit_ComputeDrawerStyle(&ctx, (ClayKit_DrawerConfig){ .side = CLAYKIT_DRAWER_LEFT });
+    ClayKit_DrawerStyle right = ClayKit_ComputeDrawerStyle(&ctx, (ClayKit_DrawerConfig){ .side = CLAYKIT_DRAWER_RIGHT });
+    ClayKit_DrawerStyle top = ClayKit_ComputeDrawerStyle(&ctx, (ClayKit_DrawerConfig){ .side = CLAYKIT_DRAWER_TOP });
+    ClayKit_DrawerStyle bottom = ClayKit_ComputeDrawerStyle(&ctx, (ClayKit_DrawerConfig){ .side = CLAYKIT_DRAWER_BOTTOM });
+
+    ASSERT_EQ(left.bg_color.r, right.bg_color.r);
+    ASSERT_EQ(left.padding, top.padding);
+    ASSERT_EQ(left.z_index, bottom.z_index);
+
+    TEST_PASS();
+}
+
+/* ============================================================================
  * Main Test Runner
  * ============================================================================ */
 
@@ -2493,6 +2865,9 @@ int main(void) {
     RUN_TEST(clear_focus);
     RUN_TEST(focus_changed_detection);
     RUN_TEST(has_focus_different_elements);
+    RUN_TEST(begin_frame_updates_prev_focused);
+    RUN_TEST(focus_next_noop);
+    RUN_TEST(focus_prev_noop);
 
     printf("\nTheme Helpers:\n");
     RUN_TEST(get_scheme_color_all);
@@ -2521,6 +2896,21 @@ int main(void) {
     RUN_TEST(input_type_replaces_selection);
     RUN_TEST(input_ctrl_left_word);
     RUN_TEST(input_ctrl_right_word);
+    RUN_TEST(input_backspace_empty);
+    RUN_TEST(input_full_selection_replace);
+    RUN_TEST(input_home_shift_select);
+    RUN_TEST(input_double_backspace);
+
+    printf("\nTypography:\n");
+    RUN_TEST(text_style_defaults);
+    RUN_TEST(text_style_custom_size);
+    RUN_TEST(text_style_custom_color);
+    RUN_TEST(heading_style_sizes);
+    RUN_TEST(heading_style_custom_font);
+
+    printf("\nIcon Data:\n");
+    RUN_TEST(icon_render_data_stores_values);
+    RUN_TEST(icon_render_data_ring_wraps);
 
     printf("\nLayout Primitives:\n");
     RUN_TEST(box_layout_padding);
@@ -2588,9 +2978,11 @@ int main(void) {
     RUN_TEST(alert_style_subtle);
     RUN_TEST(alert_style_solid);
     RUN_TEST(alert_style_outline);
+    RUN_TEST(alert_style_icon_size);
 
     printf("\nTooltip Styles:\n");
     RUN_TEST(tooltip_style_default);
+    RUN_TEST(tooltip_style_sizes);
 
     printf("\nTabs Styles:\n");
     RUN_TEST(tabs_style_line);
@@ -2610,8 +3002,10 @@ int main(void) {
     printf("\nCheckbox/Switch Styles:\n");
     RUN_TEST(checkbox_size_values);
     RUN_TEST(checkbox_bg_color_states);
+    RUN_TEST(checkbox_disabled_state);
     RUN_TEST(switch_size_values);
     RUN_TEST(switch_bg_color_states);
+    RUN_TEST(switch_disabled_state);
 
     printf("\nRadio Styles:\n");
     RUN_TEST(radio_size_values);
@@ -2635,10 +3029,12 @@ int main(void) {
     RUN_TEST(drawer_style_default);
     RUN_TEST(drawer_style_custom_size);
     RUN_TEST(drawer_style_custom_z_index);
+    RUN_TEST(drawer_style_sides);
 
     printf("\nPopover Styles:\n");
     RUN_TEST(popover_style_default);
     RUN_TEST(popover_style_custom_z_index);
+    RUN_TEST(popover_style_positions);
 
     printf("\nLink Styles:\n");
     RUN_TEST(link_style_default);

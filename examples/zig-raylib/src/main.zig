@@ -69,6 +69,35 @@ fn measureTextForClayKit(
     return .{ .width = size.x, .height = size.y };
 }
 
+// Demo icon IDs
+const ICON_INFO: u16 = 1;
+const ICON_SUCCESS: u16 = 2;
+const ICON_WARNING: u16 = 3;
+const ICON_ERROR: u16 = 4;
+
+fn iconCallback(icon_id: u16, box: claykit.BoundingBox, _: ?*anyopaque) callconv(.c) void {
+    const cx: i32 = @intFromFloat(box.x + box.width / 2.0);
+    const cy: i32 = @intFromFloat(box.y + box.height / 2.0);
+    const r: f32 = box.width / 2.0 - 1.0;
+
+    const color: raylib.Color = switch (icon_id) {
+        ICON_INFO => .{ .r = 66, .g = 133, .b = 244, .a = 255 },
+        ICON_SUCCESS => .{ .r = 34, .g = 197, .b = 94, .a = 255 },
+        ICON_WARNING => .{ .r = 251, .g = 191, .b = 36, .a = 255 },
+        ICON_ERROR => .{ .r = 239, .g = 68, .b = 68, .a = 255 },
+        else => .{ .r = 150, .g = 150, .b = 150, .a = 255 },
+    };
+    const label: [:0]const u8 = switch (icon_id) {
+        ICON_INFO => "i",
+        ICON_SUCCESS => "v",
+        ICON_WARNING => "!",
+        ICON_ERROR => "x",
+        else => "?",
+    };
+    raylib.drawCircle(cx, cy, r, color);
+    raylib.drawText(label, cx - 3, cy - 5, 10, raylib.Color.white);
+}
+
 // Clay text measurement callback
 fn measureText(text_slice: []const u8, config: *zclay.TextElementConfig, _: void) zclay.Dimensions {
     const font = raylib_fonts[config.font_id];
@@ -143,6 +172,7 @@ pub fn main() !void {
 
     // Set up text measurement for ClayKit (needed for cursor positioning)
     ctx.setMeasureText(measureTextForClayKit, null);
+    ctx.icon_callback = iconCallback;
 
     // Initialize text input state
     input_state = claykit.InputState.init(&input_buffer);
@@ -261,7 +291,7 @@ pub fn main() !void {
 
                     // Button
                     zclay.text("Button:", claykit.textStyle(&ctx, .{ .size = .sm }));
-                    _ = claykit.button(&ctx, "Btn1", "Button", .{});
+                    _ = claykit.button(&ctx, "Btn1", "Button", .{ .icon_left = .{ .id = ICON_SUCCESS, .size = 16 } });
 
                     // Text Input
                     zclay.text("Text Input:", claykit.textStyle(&ctx, .{ .size = .sm }));
@@ -375,8 +405,8 @@ pub fn main() !void {
 
                     // Alerts
                     zclay.text("Alerts:", claykit.textStyle(&ctx, .{ .size = .sm }));
-                    claykit.alertText(&ctx, "Alert1", "Info alert", .{});
-                    claykit.alertText(&ctx, "Alert2", "Success!", .{ .color_scheme = .success });
+                    claykit.alertText(&ctx, "Alert1", "Info alert", .{ .icon = .{ .id = ICON_INFO } });
+                    claykit.alertText(&ctx, "Alert2", "Success!", .{ .color_scheme = .success, .icon = .{ .id = ICON_SUCCESS } });
 
                     // Tooltip
                     zclay.text("Tooltip:", claykit.textStyle(&ctx, .{ .size = .sm }));
@@ -798,6 +828,18 @@ pub fn main() !void {
                             @floatFromInt(config.width.top),
                             toRaylibColor(config.color),
                         );
+                    }
+                },
+                .custom => {
+                    const custom = cmd.render_data.custom;
+                    if (custom.custom_data) |ptr| {
+                        const icon_data: *const claykit.IconRenderData = @ptrCast(@alignCast(ptr));
+                        if (icon_data.type == claykit.CUSTOM_ICON) {
+                            if (ctx.icon_callback) |cb| {
+                                const bbox: claykit.BoundingBox = @bitCast(cmd.bounding_box);
+                                cb(icon_data.icon_id, bbox, ctx.icon_user_data);
+                            }
+                        }
                     }
                 },
                 else => {},

@@ -1,5 +1,7 @@
 //! clay_kit.zig - Hand-written Zig bindings for clay_kit.h
 //! Zero-allocation UI components for Clay
+//!
+//! This project was built with Claude (Anthropic).
 
 const std = @import("std");
 
@@ -145,6 +147,14 @@ pub const Icon = extern struct {
 };
 
 pub const IconCallback = ?*const fn (icon_id: u16, box: BoundingBox, user_data: ?*anyopaque) callconv(.c) void;
+
+pub const CUSTOM_ICON: u16 = 0xCE01;
+
+pub const IconRenderData = extern struct {
+    type: u16 = 0, // CUSTOM_ICON discriminator
+    icon_id: u16 = 0,
+    color: Color = .{},
+};
 
 // ============================================================================
 // Text Measurement

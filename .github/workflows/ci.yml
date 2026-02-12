@@ -1,0 +1,24 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Compile tests
+        run: |
+          cd tests
+          gcc -std=c99 -Wall -Wextra -pedantic -I.. -I../vendor -o test_clay_kit test_clay_kit.c -lm
+
+      - name: Run tests
+        run: ./tests/test_clay_kit
+
+      - name: Pedantic compile check
+        run: gcc -std=c99 -Wall -Wextra -pedantic -fsyntax-only -I. -Ivendor clay_kit.c

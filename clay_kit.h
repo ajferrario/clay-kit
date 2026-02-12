@@ -3,6 +3,8 @@
  * @brief Zero-allocation UI components for Clay
  * @version 1.0.0
  *
+ * This project was built with Claude (Anthropic).
+ *
  * ClayKit is a single-header C99 library providing ready-to-use UI components
  * built on the Clay layout system. It features:
  *
@@ -77,6 +79,14 @@ typedef struct ClayKit_Icon {
 } ClayKit_Icon;
 
 typedef void (*ClayKit_IconCallback)(uint16_t icon_id, Clay_BoundingBox box, void *user_data);
+
+/* Custom render data for icon elements */
+#define CLAYKIT_CUSTOM_ICON 0xCE01
+typedef struct ClayKit_IconRenderData {
+    uint16_t type;      /* CLAYKIT_CUSTOM_ICON discriminator */
+    uint16_t icon_id;
+    Clay_Color color;
+} ClayKit_IconRenderData;
 
 /* ============================================================================
  * Text Measurement
@@ -1334,6 +1344,9 @@ extern const ClayKit_Theme CLAYKIT_THEME_DARK;
  * ============================================================================ */
 
 #ifdef CLAYKIT_IMPLEMENTATION
+
+/* Forward declarations for internal helpers */
+static void claykit_emit_icon(ClayKit_Icon icon, Clay_Color color);
 
 /* ----------------------------------------------------------------------------
  * Theme Presets
@@ -3075,6 +3088,11 @@ void ClayKit_AlertText(ClayKit_Context *ctx, const char *text, int32_t text_len,
     Clay__OpenElement();
     Clay__ConfigureOpenElement(decl);
 
+    /* Icon (if configured) */
+    if (cfg.icon.id > 0) {
+        claykit_emit_icon((ClayKit_Icon){ cfg.icon.id, style.icon_size }, style.icon_color);
+    }
+
     /* Text */
     Clay_String clay_text = { false, text_len, text };
     Clay_TextElementConfig text_config = {0};
@@ -3561,6 +3579,34 @@ void ClayKit_PopoverEnd(void) {
 }
 
 /* ----------------------------------------------------------------------------
+ * Icon Emission
+ * ---------------------------------------------------------------------------- */
+
+static ClayKit_IconRenderData claykit_icon_slots[32];
+static uint32_t claykit_icon_slot_idx = 0;
+
+static void claykit_emit_icon(ClayKit_Icon icon, Clay_Color color) {
+    ClayKit_IconRenderData *data = &claykit_icon_slots[claykit_icon_slot_idx++ % 32];
+    data->type = CLAYKIT_CUSTOM_ICON;
+    data->icon_id = icon.id;
+    data->color = color;
+
+    uint16_t sz = icon.size > 0 ? icon.size : 20;
+
+    Clay__OpenElement();
+    Clay_ElementDeclaration decl = {0};
+    decl.layout.sizing.width.size.minMax.min = (float)sz;
+    decl.layout.sizing.width.size.minMax.max = (float)sz;
+    decl.layout.sizing.width.type = CLAY__SIZING_TYPE_FIXED;
+    decl.layout.sizing.height.size.minMax.min = (float)sz;
+    decl.layout.sizing.height.size.minMax.max = (float)sz;
+    decl.layout.sizing.height.type = CLAY__SIZING_TYPE_FIXED;
+    decl.custom.customData = (void *)data;
+    Clay__ConfigureOpenElement(decl);
+    Clay__CloseElement();
+}
+
+/* ----------------------------------------------------------------------------
  * Button Rendering
  * ---------------------------------------------------------------------------- */
 
@@ -3603,6 +3649,13 @@ bool ClayKit_Button(ClayKit_Context *ctx, const char *text, int32_t text_len, Cl
 
     Clay__ConfigureOpenElement(decl);
 
+    /* Left icon */
+    if (cfg.icon_left.id > 0) {
+        ClayKit_Icon left = cfg.icon_left;
+        if (left.size == 0) left.size = font_size;
+        claykit_emit_icon(left, text_color);
+    }
+
     Clay_String clay_text = { false, text_len, text };
     Clay_TextElementConfig text_config = {0};
     text_config.fontSize = font_size;
@@ -3611,6 +3664,13 @@ bool ClayKit_Button(ClayKit_Context *ctx, const char *text, int32_t text_len, Cl
     text_config.wrapMode = CLAY_TEXT_WRAP_NONE;
 
     Clay__OpenTextElement(clay_text, Clay__StoreTextElementConfig(text_config));
+
+    /* Right icon */
+    if (cfg.icon_right.id > 0) {
+        ClayKit_Icon right = cfg.icon_right;
+        if (right.size == 0) right.size = font_size;
+        claykit_emit_icon(right, text_color);
+    }
 
     Clay__CloseElement();
     return hovered;
